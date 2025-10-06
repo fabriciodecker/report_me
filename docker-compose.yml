@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  # Backend Django
+  api:
+    build: ./reportme_api
+    container_name: reportme_api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./reportme_api:/app
+      - /app/__pycache__
+    environment:
+      - DEBUG=True
+      - SECRET_KEY=django-insecure-docker-key-change-in-production
+      - ALLOWED_HOSTS=localhost,127.0.0.1,api
+    depends_on:
+      - db
+    networks:
+      - reportme_network
+
+  # Frontend React
+  frontend:
+    build: ./reportme_front
+    container_name: reportme_frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./reportme_front:/app
+      - /app/node_modules
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000/api
+      - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      - api
+    networks:
+      - reportme_network
+
+  # Banco de dados (SQLite será usado localmente, mas PostgreSQL para produção)
+  db:
+    image: postgres:15-alpine
+    container_name: reportme_db
+    environment:
+      POSTGRES_DB: reportme
+      POSTGRES_USER: reportme
+      POSTGRES_PASSWORD: reportme123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - reportme_network
+
+networks:
+  reportme_network:
+    driver: bridge
+
+volumes:
+  postgres_data:

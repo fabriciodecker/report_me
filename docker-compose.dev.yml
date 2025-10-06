@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  # Backend Django (desenvolvimento local com SQLite)
+  api:
+    build: ./reportme_api
+    container_name: reportme_api_dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./reportme_api:/app
+      - /app/__pycache__
+    environment:
+      - DEBUG=True
+      - SECRET_KEY=django-insecure-docker-dev-key
+      - ALLOWED_HOSTS=localhost,127.0.0.1,api
+      - DB_ENGINE=django.db.backends.sqlite3
+      - DB_NAME=/app/db.sqlite3
+    networks:
+      - reportme_network
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+
+  # Frontend React
+  frontend:
+    build: ./reportme_front
+    container_name: reportme_frontend_dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./reportme_front:/app
+      - /app/node_modules
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000/api
+      - CHOKIDAR_USEPOLLING=true
+      - WDS_SOCKET_HOST=localhost
+    depends_on:
+      - api
+    networks:
+      - reportme_network
+
+networks:
+  reportme_network:
+    driver: bridge
