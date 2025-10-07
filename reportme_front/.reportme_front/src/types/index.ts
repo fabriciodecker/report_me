@@ -22,7 +22,8 @@ export interface Connection {
   host: string;
   user: string;
   password?: string; // Não deve ser retornado pela API
-  type: 'sqlite' | 'postgresql' | 'sqlserver' | 'oracle';
+  type?: 'sqlite' | 'postgresql' | 'sqlserver' | 'oracle' | 'mysql';
+  sgbd?: string; // Campo que pode vir do backend
 }
 
 export interface ConnectionTest {

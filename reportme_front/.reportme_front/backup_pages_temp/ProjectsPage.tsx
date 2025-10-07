@@ -9,7 +9,7 @@ import {
   DialogContent,
   DialogTitle,
   Fab,
-  Grid2 as Grid,
+  Grid,
   IconButton,
   TextField,
   Typography,
@@ -265,7 +265,7 @@ const ProjectsPage: React.FC = () => {
 
         <Grid container spacing={3}>
           {/* Lista de Projetos */}
-          <Grid xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <Card>
               <CardContent>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -328,7 +328,7 @@ const ProjectsPage: React.FC = () => {
           </Grid>
 
           {/* Árvore do Projeto */}
-          <Grid item xs={12} md={8}>
+          <Grid size={{ xs: 12, md: 8 }}>
             {selectedProject ? (
               <Card>
                 <CardContent>

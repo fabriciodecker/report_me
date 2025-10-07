@@ -8,7 +8,9 @@ from django.db import transaction, connection
 from django.db import models
 from django.db.models import Q, Count, Avg, Sum
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 from rest_framework.filters import SearchFilter, OrderingFilter
+from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiExample
 import json
 
@@ -256,22 +258,31 @@ class ProjectNodeViewSet(viewsets.ModelViewSet):
     ViewSet para CRUD de nós de projeto
     """
     permission_classes = [IsAuthenticated]
-    filter_backends = [SearchFilter, OrderingFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['project', 'parent']
     search_fields = ['name']
     ordering_fields = ['name', 'created_at', 'updated_at']
-    ordering = ['name']
+    ordering = ['order', 'name']
     
     def get_queryset(self):
-        """Filtrar nós baseado nas permissões do usuário"""
+        """Filtrar nós baseado nas permissões do usuário e projeto"""
         user = self.request.user
+        queryset = ProjectNode.objects.all()
         
-        if user.is_superuser or user.is_admin:
-            return ProjectNode.objects.all()
-        elif user.is_staff:
-            return ProjectNode.objects.all()
-        else:
-            # Users podem ver apenas nós de seus próprios projetos
-            return ProjectNode.objects.filter(project__owner=user)
+        # Aplicar filtro por permissões
+        if not (user.is_superuser or user.is_admin):
+            if user.is_staff:
+                queryset = queryset
+            else:
+                # Users podem ver apenas nós de seus próprios projetos
+                queryset = queryset.filter(project__owner=user)
+        
+        # Aplicar filtro por projeto se especificado
+        project_id = self.request.query_params.get('project')
+        if project_id:
+            queryset = queryset.filter(project=project_id)
+            
+        return queryset
     
     def get_serializer_class(self):
         """Escolher serializer baseado na action"""
@@ -338,10 +349,7 @@ class ProjectNodeViewSet(viewsets.ModelViewSet):
         
         # Verificar se não é o nó raiz
         if instance.parent is None and instance.project.first_node == instance:
-            return Response(
-                {"error": "Não é possível excluir o nó raiz do projeto"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            raise ValidationError("Não é possível excluir o nó raiz do projeto")
         
         # Mover filhos para o pai
         if instance.children.exists():

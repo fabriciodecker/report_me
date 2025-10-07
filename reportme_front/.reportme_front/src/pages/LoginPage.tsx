@@ -104,9 +104,7 @@ const LoginPage: React.FC = () => {
 
             <Box sx={{ textAlign: 'center' }}>
               <Typography variant="body2" color="textSecondary">
-                Usuário de teste: <strong>admin</strong>
-                <br />
-                Senha: <strong>Teste@123</strong>
+                Use suas credenciais do sistema
               </Typography>
             </Box>
           </form>
