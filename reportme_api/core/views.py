@@ -347,25 +347,27 @@ class ProjectNodeViewSet(viewsets.ModelViewSet):
                 message="Você não tem permissão para editar este projeto"
             )
         
-        # Verificar se não é o nó raiz
-        if instance.parent is None and instance.project.first_node == instance:
-            raise ValidationError("Não é possível excluir o nó raiz do projeto")
-        
-        # Mover filhos para o pai
-        if instance.children.exists():
-            for child in instance.children.all():
-                child.parent = instance.parent
-                child.save()
-        
+        # Coletar informações antes da exclusão
         node_name = instance.name
         project_name = instance.project.name
+        children_count = instance.children.count()
+        
+        # Excluir o nó (CASCADE irá excluir todos os filhos automaticamente)
         instance.delete()
         
-        log_user_action(
-            user=self.request.user,
-            action='delete_node',
-            details=f"Excluído nó: {node_name} do projeto {project_name}"
-        )
+        # Log da ação
+        if children_count > 0:
+            log_user_action(
+                user=self.request.user,
+                action='delete_node_with_children',
+                details=f"Excluído nó: {node_name} e {children_count} filhos do projeto {project_name}"
+            )
+        else:
+            log_user_action(
+                user=self.request.user,
+                action='delete_node',
+                details=f"Excluído nó: {node_name} do projeto {project_name}"
+            )
     
     def retrieve(self, request, *args, **kwargs):
         """Verificar permissão de visualização"""
@@ -736,6 +738,50 @@ class ConnectionViewSet(viewsets.ModelViewSet):
             
             return Response(error_result, status=status.HTTP_400_BAD_REQUEST)
     
+    @extend_schema(
+        tags=['connections'],
+        summary='Testar conexão específica',
+        description='Testar conectividade de uma conexão específica por ID',
+    )
+    @action(detail=True, methods=['post'])
+    def test(self, request, pk=None):
+        """Endpoint para testar uma conexão específica por ID"""
+        connection = self.get_object()
+        
+        if not request.user.can_view_connection(connection):
+            return Response(
+                {"error": "Você não tem permissão para testar esta conexão"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            test_result = self._test_database_connection(connection)
+            
+            # Log da ação
+            log_user_action(
+                user=request.user,
+                action='test_connection',
+                details=f"Teste de conexão - Sucesso: {test_result['success']} - Conexão: {connection.name}"
+            )
+            
+            return Response(test_result)
+            
+        except Exception as e:
+            error_result = {
+                'success': False,
+                'message': f'Erro ao testar conexão: {str(e)}',
+                'error_type': type(e).__name__,
+                'timestamp': timezone.now().isoformat()
+            }
+            
+            log_user_action(
+                user=request.user,
+                action='test_connection_failed',
+                details=f"Teste de conexão falhou: {str(e)} - Conexão: {connection.name}"
+            )
+            
+            return Response(error_result, status=status.HTTP_400_BAD_REQUEST)
+    
     @action(detail=True, methods=['post'])
     def duplicate(self, request, pk=None):
         """Duplicar conexão"""
@@ -1086,6 +1132,8 @@ class QueryViewSet(viewsets.ModelViewSet):
         """Escolher serializer baseado na action"""
         if self.action == 'list':
             return QueryListSerializer
+        elif self.action in ['create', 'update', 'partial_update']:
+            return QueryCreateSerializer
         elif self.action == 'execute':
             return QueryExecutionSerializer
         elif self.action == 'validate':
@@ -1107,17 +1155,53 @@ class QueryViewSet(viewsets.ModelViewSet):
             details=f"Criada consulta: {query.name}"
         )
     
+    def update(self, request, *args, **kwargs):
+        """Interceptar requests de update para debugging"""
+        print(f"=== DEBUG QueryViewSet.update ===")
+        print(f"Request method: {request.method}")
+        print(f"Request data: {request.data}")
+        print(f"Request headers: {dict(request.headers)}")
+        print(f"User: {request.user.username}")
+        print(f"Query ID: {kwargs.get('pk')}")
+        print("=== FIM DEBUG update ===")
+        
+        return super().update(request, *args, **kwargs)
+    
+    def partial_update(self, request, *args, **kwargs):
+        """Interceptar requests de partial_update para debugging"""
+        print(f"=== DEBUG QueryViewSet.partial_update ===")
+        print(f"Request method: {request.method}")
+        print(f"Request data: {request.data}")
+        print(f"Request headers: {dict(request.headers)}")
+        print(f"User: {request.user.username}")
+        print(f"Query ID: {kwargs.get('pk')}")
+        print("=== FIM DEBUG partial_update ===")
+        
+        return super().partial_update(request, *args, **kwargs)
+    
     def perform_update(self, serializer):
         """Atualizar consulta e logar ação"""
+        print(f"=== DEBUG QueryViewSet.perform_update ===")
+        print(f"Request method: {self.request.method}")
+        print(f"Request data: {self.request.data}")
+        print(f"User: {self.request.user.username}")
+        
         query = self.get_object()
+        print(f"Query sendo editada: {query.name} (ID: {query.id})")
+        
         if not self.request.user.can_edit_connection(query.connection):
+            print("ERRO: Usuário não tem permissão para editar esta consulta")
             self.permission_denied(
                 self.request,
                 message="Você não tem permissão para editar esta consulta"
             )
         
         old_name = query.name
+        print(f"Salvando query com serializer: {type(serializer).__name__}")
         query = serializer.save()
+        print(f"Query salva com sucesso: {old_name} -> {query.name}")
+        print("=== FIM DEBUG perform_update ===")
+        
         log_user_action(
             user=self.request.user,
             action='update_query',
@@ -1160,20 +1244,21 @@ class QueryViewSet(viewsets.ModelViewSet):
         query_id = serializer.validated_data['query_id']
         parameters = serializer.validated_data.get('parameters', {})
         limit = serializer.validated_data.get('limit', 100)
-        
+        print("***1")
         try:
             query = Query.objects.get(id=query_id)
-            
+            print("***2")
             # Executar consulta
             result = self._execute_query(query, parameters, limit, request.user)
-            
+            print("***3")
             # Log da execução
             log_user_action(
                 user=request.user,
                 action='execute_query',
-                details=f"Executada consulta: {query.name} - {result['records_count']} registros"
+                details=f"Executada consulta: {query.name} - {result['total_records']} registros"
             )
-            
+            print("***4")
+            print(f"Resultado da execução: {result}")
             return Response(result)
             
         except Exception as e:
@@ -1182,7 +1267,8 @@ class QueryViewSet(viewsets.ModelViewSet):
                 action='execute_query',
                 details=f"Erro ao executar consulta ID {query_id}: {str(e)}"
             )
-            
+            print("***44")
+            print(f"Erro na execução da query: {str(e)}")
             return Response({
                 'success': False,
                 'error': str(e),
@@ -1212,6 +1298,20 @@ class QueryViewSet(viewsets.ModelViewSet):
                 'error': str(e),
                 'timestamp': timezone.now().isoformat()
             }, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=False, methods=['post'], url_path='test-execute')
+    def test_execute(self, request):
+        """Teste simples de execução de query sem validações complexas"""
+        print(f"=== TEST EXECUTE ===")
+        print(f"Data: {request.data}")
+        print(f"User: {request.user}")
+        
+        return Response({
+            'success': True,
+            'message': 'Endpoint funcionando',
+            'data_received': request.data,
+            'user': str(request.user)
+        })
     
     @action(detail=True, methods=['post'])
     def duplicate(self, request, pk=None):
@@ -1562,3 +1662,180 @@ class QueryViewSet(viewsets.ModelViewSet):
             )
             
             raise e
+
+    def _execute_query(self, query, parameters, limit, user):
+        """Executar consulta SQL sem paginação"""
+        import time
+        from django.core.cache import cache
+        
+        start_time = time.time()
+        
+        try:
+            print('**6')
+            # Substituir parâmetros na consulta
+            sql_query = self._replace_query_parameters(query.query, parameters)
+            
+            # Adicionar LIMIT se especificado
+            if limit and limit > 0:
+                if query.connection.sgbd == 'sqlserver':
+                    sql_query = f"SELECT TOP {limit} * FROM ({sql_query}) as limited_query"
+                elif query.connection.sgbd == 'oracle':
+                    sql_query = f"SELECT * FROM ({sql_query}) WHERE ROWNUM <= {limit}"
+                else:
+                    sql_query += f" LIMIT {limit}"
+            print('**7')
+            # Obter conexão de banco
+            db_connection = self._get_database_connection(query.connection)
+            print('**8')
+            # Executar consulta
+            cursor = db_connection.cursor()
+            print('**9')
+            cursor.execute(sql_query)
+            columns = [desc[0] for desc in cursor.description] if cursor.description else []
+            rows = cursor.fetchall()
+            print('**10')
+            cursor.close()
+            db_connection.close()
+            
+            end_time = time.time()
+            execution_time = round((end_time - start_time) * 1000, 2)
+            
+            result = {
+                'success': True,
+                'columns': columns,
+                'rows': [list(row) for row in rows],
+                'total_records': len(rows),
+                'execution_time_ms': execution_time,
+                'timestamp': timezone.now().isoformat()
+            }
+            
+            # Salvar execução no histórico
+            QueryExecution.objects.create(
+                query=query,
+                user=user,
+                status='success',
+                execution_time=execution_time / 1000,
+                rows_returned=len(rows),
+                parameters=parameters
+            )
+            
+            return result
+            
+        except Exception as e:
+            end_time = time.time()
+            execution_time = round((end_time - start_time) * 1000, 2)
+            print(f"Erro na execução da query: {str(e)}")
+            print(f"SQL executado: {sql_query}")
+            print(f"Parâmetros: {parameters}")
+            # Salvar execução com erro
+            QueryExecution.objects.create(
+                query=query,
+                user=user,
+                status='error',
+                execution_time=execution_time / 1000,
+                error_message=str(e),
+                parameters=parameters
+            )
+            
+            raise e
+
+    def _get_database_connection(self, connection):
+        """Obter conexão com banco de dados"""
+        if connection.sgbd == 'postgresql':
+            return self._get_postgresql_connection(connection)
+        elif connection.sgbd == 'mysql':
+            return self._get_mysql_connection(connection)
+        elif connection.sgbd == 'sqlserver':
+            return self._get_sqlserver_connection(connection)
+        elif connection.sgbd == 'oracle':
+            return self._get_oracle_connection(connection)
+        elif connection.sgbd == 'sqlite':
+            return self._get_sqlite_connection(connection)
+        else:
+            raise ValueError(f"Tipo de banco de dados não suportado: {connection.sgbd}")
+
+    def _get_postgresql_connection(self, connection):
+        """Conectar ao PostgreSQL"""
+        try:
+            print('**12')
+            import psycopg2
+            return psycopg2.connect(
+                host=connection.host,
+                port=connection.port or 5432,
+                database=connection.database,
+                user=connection.user,
+                password=connection.password,
+                connect_timeout=30  # Timeout padrão de conexão
+            )
+        except ImportError:
+            raise Exception("Driver PostgreSQL (psycopg2) não está instalado")
+
+    def _get_mysql_connection(self, connection):
+        """Conectar ao MySQL"""
+        try:
+            import pymysql
+            return pymysql.connect(
+                host=connection.host,
+                port=connection.port or 3306,
+                database=connection.database,
+                user=connection.user,
+                password=connection.password,
+                connect_timeout=30  # Timeout padrão de conexão
+            )
+        except ImportError:
+            try:
+                import MySQLdb
+                return MySQLdb.connect(
+                    host=connection.host,
+                    port=connection.port or 3306,
+                    db=connection.database,
+                    user=connection.user,
+                    passwd=connection.password,
+                    connect_timeout=30  # Timeout padrão de conexão
+                )
+            except ImportError:
+                raise Exception("Nenhum driver MySQL encontrado. Execute: pip install pymysql")
+
+    def _get_sqlserver_connection(self, connection):
+        """Conectar ao SQL Server"""
+        try:
+            import pyodbc
+            conn_str = f"DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={connection.host},{connection.port or 1433};DATABASE={connection.database};UID={connection.user};PWD={connection.password}"
+            return pyodbc.connect(conn_str, timeout=30)  # Timeout padrão de conexão
+        except ImportError:
+            raise Exception("Driver SQL Server (pyodbc) não está instalado")
+
+    def _get_oracle_connection(self, connection):
+        """Conectar ao Oracle"""
+        try:
+            import cx_Oracle
+            dsn = cx_Oracle.makedsn(connection.host, connection.port or 1521, service_name=connection.database)
+            return cx_Oracle.connect(connection.user, connection.password, dsn)
+        except ImportError:
+            raise Exception("Driver Oracle (cx_Oracle) não está instalado")
+
+    def _get_sqlite_connection(self, connection):
+        """Conectar ao SQLite"""
+        try:
+            import sqlite3
+            return sqlite3.connect(connection.database, timeout=30)  # Timeout padrão de conexão
+        except Exception as e:
+            raise Exception(f"Erro SQLite: {str(e)}")
+
+    def _replace_query_parameters(self, query_sql, parameters):
+        """Substituir parâmetros na consulta SQL"""
+        sql = query_sql
+        
+        # Substituir parâmetros no formato :param_name
+        for param_name, param_value in parameters.items():
+            placeholder = f":{param_name}"
+            if isinstance(param_value, str):
+                # Escapar aspas simples em strings
+                param_value = param_value.replace("'", "''")
+                sql = sql.replace(placeholder, f"'{param_value}'")
+            elif param_value is None:
+                sql = sql.replace(placeholder, "NULL")
+            else:
+                sql = sql.replace(placeholder, str(param_value))
+        
+        return sql

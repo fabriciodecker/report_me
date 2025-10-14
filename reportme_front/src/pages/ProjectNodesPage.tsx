@@ -33,9 +33,10 @@ import {
   ChevronRight as ChevronRightIcon,
   Folder as FolderClosedIcon,
   AccountTree as TreeIcon,
+  PlayArrow as PlayIcon,
 } from '@mui/icons-material';
-import { ProjectNode, Project } from '../types';
-import { projectNodeService, projectService } from '../services/api';
+import { ProjectNode, Project, Query } from '../types';
+import { projectNodeService, projectService, queryService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -52,6 +53,7 @@ const ProjectNodesPage: React.FC = () => {
   
   const [project, setProject] = useState<Project | null>(null);
   const [nodes, setNodes] = useState<ProjectNode[]>([]);
+  const [queries, setQueries] = useState<Query[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set());
@@ -74,7 +76,7 @@ const ProjectNodesPage: React.FC = () => {
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
-    severity: 'success' as 'success' | 'error',
+    severity: 'success' as 'success' | 'error' | 'info' | 'warning',
   });
 
   // Carregar dados
@@ -89,10 +91,18 @@ const ProjectNodesPage: React.FC = () => {
       const projectIdNum = parseInt(projectId);
       console.log('Carregando dados para projeto ID:', projectIdNum);
       
-      // Carregar projeto
-      const projectData = await projectService.getById(projectIdNum);
+      // Carregar projeto e queries em paralelo
+      const [projectData, queriesResponse] = await Promise.all([
+        projectService.getById(projectIdNum),
+        queryService.getAll()
+      ]);
+      
       console.log('Projeto carregado:', projectData);
       setProject(projectData);
+      
+      console.log('Queries carregadas:', queriesResponse);
+      const queriesList = queriesResponse.results || queriesResponse;
+      setQueries(Array.isArray(queriesList) ? queriesList : []);
       
       // Carregar nós do projeto
       const nodesResponse = await projectNodeService.getAll(projectIdNum);
@@ -281,6 +291,17 @@ const ProjectNodesPage: React.FC = () => {
     return nodes.some(node => node.parent_id === nodeId);
   };
 
+  // Verificar se nó pode ter query (apenas nós folha)
+  const canHaveQuery = (nodeId?: number): boolean => {
+    if (!nodeId) return true; // Novo nó pode ter query
+    return !hasChildren(nodeId);
+  };
+
+  // Verificar se é nó raiz (não pode ser excluído)
+  const isRootNode = (node: ProjectNode): boolean => {
+    return !node.parent_id && project?.first_node_id === node.id;
+  };
+
   // Renderizar nó individual
   const renderNode = (node: ProjectNode, level: number = 0): React.ReactNode => {
     const children = nodes.filter(n => n.parent_id === node.id);
@@ -365,14 +386,35 @@ const ProjectNodesPage: React.FC = () => {
                     }}
                   >
                     {node.name}
+                    {/* Nome da query ao lado do nome do nó */}
+                    {node.query_id && (() => {
+                      const query = queries.find(q => q.id === node.query_id);
+                      return query ? (
+                        <Typography 
+                          component="span" 
+                          variant="body2" 
+                          sx={{ 
+                            ml: 1, 
+                            color: 'success.main', 
+                            fontWeight: 'normal',
+                            fontSize: '0.875rem'
+                          }}
+                        >
+                          → {query.name}
+                        </Typography>
+                      ) : null;
+                    })()}
                   </Typography>
+                  
+                  {/* Informações secundárias */}
                   <Typography variant="caption" color="text.secondary">
-                    {node.query_id ? (
-                      `Query ID: ${node.query_id}`
-                    ) : nodeHasChildren ? (
-                      `Pasta (${children.length} ${children.length === 1 ? 'item' : 'itens'})`
+                    {node.query_id ? (() => {
+                      const query = queries.find(q => q.id === node.query_id);
+                      return query?.connection?.name ? `� Conexão: ${query.connection.name}` : '📄 Query associada';
+                    })() : nodeHasChildren ? (
+                      `📁 Pasta (${children.length} ${children.length === 1 ? 'item' : 'itens'})`
                     ) : (
-                      'Nó de organização'
+                      '📂 Nó de organização'
                     )}
                   </Typography>
                 </Box>
@@ -380,11 +422,30 @@ const ProjectNodesPage: React.FC = () => {
 
               {/* Lado direito - Botões de ação */}
               <Box sx={{ display: 'flex', gap: 0.5 }}>
+                {/* Botão executar query - apenas para nós com query */}
+                {node.query_id && (
+                  <IconButton
+                    size="small"
+                    onClick={() => handleExecuteQuery(node)}
+                    title="Executar Query"
+                    sx={{ 
+                      color: 'success.main',
+                      '&:hover': { 
+                        backgroundColor: 'success.main',
+                        color: 'success.contrastText',
+                      }
+                    }}
+                  >
+                    <PlayIcon fontSize="small" />
+                  </IconButton>
+                )}
+                
                 <IconButton
                   size="small"
                   onClick={() => handleNewNode(node)}
                   title="Adicionar nó filho"
                   color="primary"
+                  disabled={!!node.query_id} // Nós com query não podem ter filhos
                   sx={{ 
                     '&:hover': { 
                       backgroundColor: 'primary.main',
@@ -410,12 +471,16 @@ const ProjectNodesPage: React.FC = () => {
                 <IconButton
                   size="small"
                   onClick={() => handleDeleteClick(node)}
-                  title="Excluir nó"
+                  title={isRootNode(node) ? "Nó raiz não pode ser excluído" : "Excluir nó"}
                   color="error"
+                  disabled={isRootNode(node)}
                   sx={{ 
                     '&:hover': { 
                       backgroundColor: 'error.main',
                       color: 'error.contrastText',
+                    },
+                    '&.Mui-disabled': {
+                      color: 'text.disabled',
                     }
                   }}
                 >
@@ -457,6 +522,38 @@ const ProjectNodesPage: React.FC = () => {
 
   const handleCollapseAll = () => {
     setExpandedNodes(new Set());
+  };
+
+  // Executar query de um nó
+  const handleExecuteQuery = async (node: ProjectNode) => {
+    if (!node.query_id) return;
+
+    try {
+      setSnackbar({
+        open: true,
+        message: `Executando query "${node.name}"...`,
+        severity: 'info',
+      });
+
+      const result = await queryService.execute(node.query_id);
+      
+      setSnackbar({
+        open: true,
+        message: `Query executada com sucesso! ${result.total_records || 0} registros retornados.`,
+        severity: 'success',
+      });
+
+      // Aqui você pode implementar uma modal para mostrar os resultados
+      console.log('Resultado da query:', result);
+      
+    } catch (err) {
+      console.error('Erro ao executar query:', err);
+      setSnackbar({
+        open: true,
+        message: 'Erro ao executar query. Verifique os logs.',
+        severity: 'error',
+      });
+    }
   };
 
   if (loading) {
@@ -607,13 +704,49 @@ const ProjectNodesPage: React.FC = () => {
             sx={{ mb: 2 }}
           />
           
-          <Alert severity="info" sx={{ mb: 2 }}>
-            <Typography variant="body2">
-              <strong>Nós de organização:</strong> Use para estruturar hierarquicamente seu projeto.
-              <br />
-              <strong>Nós com query:</strong> Posteriormente você poderá associar consultas SQL a este nó.
-            </Typography>
-          </Alert>
+          {/* Seletor de Query - apenas para nós folha */}
+          {canHaveQuery(editingNode?.id) && (
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel id="query-select-label">Query (Opcional)</InputLabel>
+              <Select
+                labelId="query-select-label"
+                value={formData.query_id || ''}
+                label="Query (Opcional)"
+                onChange={(e) => setFormData({ 
+                  ...formData, 
+                  query_id: e.target.value ? Number(e.target.value) : undefined 
+                })}
+              >
+                <MenuItem value="">
+                  <em>Nenhuma query (nó de organização)</em>
+                </MenuItem>
+                {queries.map((query) => (
+                  <MenuItem key={query.id} value={query.id}>
+                    {query.name} - {query.connection?.name || 'Sem conexão'}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+          
+          {/* Alertas informativos */}
+          {canHaveQuery(editingNode?.id) ? (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              <Typography variant="body2">
+                <strong>📁 Nó de organização:</strong> Não selecione query para criar uma pasta que pode conter outros nós.
+                <br />
+                <strong>📄 Nó com query:</strong> Selecione uma query para criar um nó executável (nó folha).
+              </Typography>
+            </Alert>
+          ) : (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              <Typography variant="body2">
+                <strong>⚠️ Nó com filhos:</strong> Este nó possui filhos e não pode ter uma query associada.
+                <br />
+                Apenas nós folha (sem filhos) podem executar queries.
+              </Typography>
+            </Alert>
+          )}
           
           {selectedParentNode && (
             <Alert severity="info" sx={{ mt: 2 }}>
@@ -643,7 +776,7 @@ const ProjectNodesPage: React.FC = () => {
         </DialogTitle>
         <DialogContent>
           <Typography gutterBottom>
-            Tem certeza que deseja excluir o nó "{nodeToDelete?.name}"?
+            Tem certeza que deseja excluir o nó "<strong>{nodeToDelete?.name}</strong>"?
           </Typography>
           {nodeToDelete && (
             <>
@@ -669,23 +802,47 @@ const ProjectNodesPage: React.FC = () => {
                       <Typography variant="body2" gutterBottom>
                         <strong>⚠️ Atenção:</strong> Este nó possui {allDescendants.length} {allDescendants.length === 1 ? 'descendente' : 'descendentes'} que também {allDescendants.length === 1 ? 'será excluído' : 'serão excluídos'}:
                       </Typography>
-                      <Box sx={{ ml: 2, mt: 1 }}>
-                        {allDescendants.slice(0, 5).map((child, index) => (
+                      <Box sx={{ ml: 2, mt: 1, maxHeight: 120, overflow: 'auto' }}>
+                        {allDescendants.slice(0, 10).map((child) => (
                           <Typography key={child.id} variant="caption" display="block">
                             • {child.name}
+                            {child.query_id && (
+                              <Box component="span" sx={{ color: 'warning.main', ml: 1 }}>
+                                (com query)
+                              </Box>
+                            )}
                           </Typography>
                         ))}
-                        {allDescendants.length > 5 && (
+                        {allDescendants.length > 10 && (
                           <Typography variant="caption" color="text.secondary">
-                            ... e mais {allDescendants.length - 5} {allDescendants.length - 5 === 1 ? 'nó' : 'nós'}
+                            ... e mais {allDescendants.length - 10} {allDescendants.length - 10 === 1 ? 'nó' : 'nós'}
                           </Typography>
                         )}
                       </Box>
+                      <Typography variant="body2" sx={{ mt: 1, fontWeight: 'bold' }}>
+                        Esta ação não pode ser desfeita!
+                      </Typography>
+                    </Alert>
+                  );
+                } else {
+                  return (
+                    <Alert severity="info" sx={{ mt: 2 }}>
+                      <Typography variant="body2">
+                        Este é um nó folha (sem filhos). Apenas este nó será excluído.
+                      </Typography>
                     </Alert>
                   );
                 }
-                return null;
               })()}
+              
+              {/* Informação sobre nó raiz */}
+              {!nodeToDelete.parent_id && (
+                <Alert severity="info" sx={{ mt: 1 }}>
+                  <Typography variant="body2">
+                    <strong>📁 Nó Raiz:</strong> Este é um nó raiz do projeto. Você pode ter múltiplos nós raiz.
+                  </Typography>
+                </Alert>
+              )}
             </>
           )}
         </DialogContent>
@@ -699,7 +856,26 @@ const ProjectNodesPage: React.FC = () => {
             variant="contained"
             startIcon={<DeleteIcon />}
           >
-            Excluir
+            {nodeToDelete && (() => {
+              const children = nodes.filter(n => n.parent_id === nodeToDelete.id);
+              const allDescendants: ProjectNode[] = [];
+              
+              const collectDescendants = (nodeId: number) => {
+                const directChildren = nodes.filter(n => n.parent_id === nodeId);
+                for (const child of directChildren) {
+                  allDescendants.push(child);
+                  collectDescendants(child.id);
+                }
+              };
+              
+              collectDescendants(nodeToDelete.id);
+              
+              if (allDescendants.length > 0) {
+                return `Excluir Tudo (${allDescendants.length + 1} nós)`;
+              } else {
+                return 'Excluir';
+              }
+            })()}
           </Button>
         </DialogActions>
       </Dialog>

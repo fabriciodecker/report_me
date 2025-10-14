@@ -127,7 +127,7 @@ core_project_node id INTEGER
 core_project_node name varchar(255)
 core_project_node parent_id INTEGER
 core_project_node query_id
-core_project_node connection_id
+
 
 core_user id INTEGER
 core_user email varchar(255)

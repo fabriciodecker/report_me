@@ -244,12 +244,28 @@ export const queryService = {
   },
 
   execute: async (id: number, parameters?: Record<string, any>): Promise<any> => {
-    const response = await api.post(`/core/queries/${id}/execute/`, { parameters });
+    const response = await api.post('/core/queries/execute/', { 
+      query_id: id, 
+      parameters: parameters || {},
+      limit: 100
+    });
+    return response.data;
+  },
+  
+  testExecute: async (id: number): Promise<any> => {
+    const response = await api.post('/core/queries/test-execute/', { 
+      query_id: id, 
+      parameters: {},
+      limit: 100
+    });
     return response.data;
   },
 
-  validate: async (id: number): Promise<any> => {
-    const response = await api.post(`/core/queries/${id}/validate/`);
+  validate: async (query: string, connection_id: number): Promise<any> => {
+    const response = await api.post('/core/queries/validate/', { 
+      query, 
+      connection_id 
+    });
     return response.data;
   },
 

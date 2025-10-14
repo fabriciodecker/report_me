@@ -61,10 +61,7 @@ cd report_me
 1. **Backend**:
 ```bash
 cd reportme_api
-python -m venv ../report_me
-source ../report_me/bin/activate  # Linux/Mac
-pip install -r requirements.txt
-python manage.py migrate
+source .reportme_api/bin/activate  # Ambiente virtual já configurado
 python manage.py runserver
 ```
 

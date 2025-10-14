@@ -1,6 +1,6 @@
 import React from 'react';
 import { Container, Typography, Paper, Box, Button } from '@mui/material';
-import { FolderOpen, Dashboard, Settings } from '@mui/icons-material';
+import { FolderOpen, Dashboard, Settings, Storage as QueryIcon } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -70,6 +70,23 @@ const DashboardPage: React.FC = () => {
                 <Typography variant="h6">Conexões</Typography>
                 <Typography variant="body2" color="text.secondary">
                   Configurar conexões de banco
+                </Typography>
+              </Paper>
+              
+              <Paper 
+                elevation={2} 
+                sx={{ 
+                  p: 3, 
+                  textAlign: 'center', 
+                  cursor: 'pointer',
+                  '&:hover': { elevation: 4 }
+                }}
+                onClick={() => navigate('/queries')}
+              >
+                <QueryIcon sx={{ fontSize: 48, color: 'warning.main', mb: 1 }} />
+                <Typography variant="h6">Queries</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Gerenciar consultas SQL
                 </Typography>
               </Paper>
               

@@ -14,11 +14,13 @@ class ProjectNodeSerializer(serializers.ModelSerializer):
     connection_name = serializers.CharField(source='connection.name', read_only=True)
     has_query = serializers.SerializerMethodField()
     node_type = serializers.SerializerMethodField()
+    parent_id = serializers.IntegerField(source='parent.id', read_only=True, allow_null=True)
+    query_id = serializers.IntegerField(source='query.id', read_only=True, allow_null=True)
     
     class Meta:
         model = ProjectNode
         fields = [
-            'id', 'name', 'parent', 'query', 'connection',
+            'id', 'name', 'parent', 'parent_id', 'query', 'query_id', 'connection',
             'children', 'query_name', 'connection_name', 'has_query',
             'node_type', 'created_at', 'updated_at'
         ]
@@ -47,21 +49,98 @@ class ProjectNodeCreateSerializer(serializers.ModelSerializer):
     """
     Serializer simplificado para criação de nós (sem recursão)
     """
+    parent_id = serializers.IntegerField(required=False, allow_null=True, write_only=True)
+    query_id = serializers.IntegerField(required=False, allow_null=True, write_only=True)
+    
     class Meta:
         model = ProjectNode
-        fields = ['id', 'name', 'parent', 'query', 'connection']
+        fields = ['id', 'name', 'parent', 'parent_id', 'query', 'query_id', 'connection']
         read_only_fields = ['id']
+        extra_kwargs = {
+            'parent': {'required': False},
+            'query': {'required': False}
+        }
+    
+    def create(self, validated_data):
+        """Custom create to handle parent_id and query_id"""
+        parent_id = validated_data.pop('parent_id', None)
+        query_id = validated_data.pop('query_id', None)
+        
+        if parent_id:
+            try:
+                parent = ProjectNode.objects.get(id=parent_id)
+                validated_data['parent'] = parent
+            except ProjectNode.DoesNotExist:
+                raise serializers.ValidationError({"parent_id": "Nó pai não encontrado"})
+        
+        if query_id:
+            try:
+                from .models import Query
+                query = Query.objects.get(id=query_id)
+                validated_data['query'] = query
+            except Query.DoesNotExist:
+                raise serializers.ValidationError({"query_id": "Query não encontrada"})
+        
+        return super().create(validated_data)
+    
+    def update(self, instance, validated_data):
+        """Custom update to handle parent_id and query_id"""
+        parent_id = validated_data.pop('parent_id', None)
+        query_id = validated_data.pop('query_id', None)
+        
+        if parent_id is not None:
+            if parent_id:
+                try:
+                    parent = ProjectNode.objects.get(id=parent_id)
+                    validated_data['parent'] = parent
+                except ProjectNode.DoesNotExist:
+                    raise serializers.ValidationError({"parent_id": "Nó pai não encontrado"})
+            else:
+                validated_data['parent'] = None
+        
+        if query_id is not None:
+            if query_id:
+                try:
+                    from .models import Query
+                    query = Query.objects.get(id=query_id)
+                    validated_data['query'] = query
+                except Query.DoesNotExist:
+                    raise serializers.ValidationError({"query_id": "Query não encontrada"})
+            else:
+                validated_data['query'] = None
+        
+        return super().update(instance, validated_data)
     
     def validate(self, attrs):
         """Validações customizadas"""
         parent = attrs.get('parent')
+        parent_id = attrs.get('parent_id')
         query = attrs.get('query')
+        query_id = attrs.get('query_id')
+        
+        # Se parent_id foi fornecido, buscar o parent
+        if parent_id and not parent:
+            try:
+                parent = ProjectNode.objects.get(id=parent_id)
+                attrs['parent'] = parent
+            except ProjectNode.DoesNotExist:
+                raise serializers.ValidationError({"parent_id": "Nó pai não encontrado"})
+        
+        # Se query_id foi fornecido, buscar a query
+        if query_id and not query:
+            try:
+                from .models import Query
+                query = Query.objects.get(id=query_id)
+                attrs['query'] = query
+            except Query.DoesNotExist:
+                raise serializers.ValidationError({"query_id": "Query não encontrada"})
         
         # Validar que nós com query não podem ter filhos
-        if query and parent:
-            if parent.children.exists():
+        if query and hasattr(self, 'instance') and self.instance:
+            # Verificar se o nó já tem filhos
+            if self.instance.children.exists():
                 raise serializers.ValidationError(
-                    "Nós com consulta não podem ter filhos"
+                    "Nós que já possuem filhos não podem ter uma query associada"
                 )
         
         return attrs
@@ -75,11 +154,12 @@ class ProjectSerializer(serializers.ModelSerializer):
     node_count = serializers.SerializerMethodField()
     query_count = serializers.SerializerMethodField()
     created_by_name = serializers.CharField(source='owner.full_name', read_only=True)
+    first_node_id = serializers.IntegerField(source='first_node.id', read_only=True, allow_null=True)
     
     class Meta:
         model = Project
         fields = [
-            'id', 'name', 'description', 'first_node', 'root_node', 'node_count',
+            'id', 'name', 'description', 'first_node', 'first_node_id', 'root_node', 'node_count',
             'query_count', 'owner', 'created_by_name',
             'created_at', 'updated_at', 'is_active'
         ]
@@ -321,10 +401,18 @@ class QueryListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Query
         fields = [
-            'id', 'name', 'connection', 'connection_name', 'created_by_name',
+            'id', 'name', 'query', 'connection', 'connection_id', 'connection_name', 'created_by_name',
             'parameters_count', 'last_execution', 'timeout', 'cache_duration',
             'created_at', 'updated_at', 'is_active'
         ]
+    
+    def to_representation(self, instance):
+        """Customizar representação para garantir connection_id"""
+        data = super().to_representation(instance)
+        # Garantir que connection_id esteja presente
+        if instance.connection_id:
+            data['connection_id'] = instance.connection_id
+        return data
     
     def get_parameters_count(self, obj):
         """Contar parâmetros da consulta"""
@@ -355,12 +443,24 @@ class QuerySerializer(serializers.ModelSerializer):
     class Meta:
         model = Query
         fields = [
-            'id', 'name', 'query', 'connection', 'connection_name',
+            'id', 'name', 'query', 'connection', 'connection_id', 'connection_name',
             'timeout', 'cache_duration', 'query_parameters', 'parameters_count',
             'execution_history', 'created_by', 'created_by_name',
             'created_at', 'updated_at', 'is_active'
         ]
         read_only_fields = ['created_by', 'created_at', 'updated_at']
+        extra_kwargs = {
+            'connection': {'required': False},
+            'connection_id': {'required': False},
+        }
+    
+    def to_representation(self, instance):
+        """Customizar representação para garantir connection_id"""
+        data = super().to_representation(instance)
+        # Garantir que connection_id esteja presente
+        if instance.connection_id:
+            data['connection_id'] = instance.connection_id
+        return data
     
     def get_parameters_count(self, obj):
         """Contar parâmetros da consulta"""
@@ -418,24 +518,97 @@ class QuerySerializer(serializers.ModelSerializer):
         if not user.can_view_connection(value):
             raise serializers.ValidationError("Você não tem permissão para usar esta conexão")
         return value
+    
+    def validate(self, data):
+        """Validação geral"""
+        # Garantir que connection ou connection_id seja fornecido
+        connection_id = data.get('connection_id')
+        connection = data.get('connection')
+        
+        if not connection and not connection_id:
+            raise serializers.ValidationError({
+                'non_field_errors': ['Campo connection ou connection_id é obrigatório']
+            })
+        
+        # Se connection_id for fornecido, converter para connection
+        if connection_id and not connection:
+            try:
+                connection_obj = Connection.objects.get(id=connection_id)
+                # Verificar se o usuário tem permissão para usar esta conexão
+                user = self.context['request'].user
+                if not user.can_view_connection(connection_obj):
+                    raise serializers.ValidationError({
+                        'connection': ['Você não tem permissão para usar esta conexão']
+                    })
+                data['connection'] = connection_obj
+                # Remove connection_id para evitar conflitos
+                if 'connection_id' in data:
+                    del data['connection_id']
+            except Connection.DoesNotExist:
+                raise serializers.ValidationError({
+                    'connection_id': ['Conexão não encontrada']
+                })
+        
+        return data
 
 
 class QueryCreateSerializer(serializers.ModelSerializer):
     """
     Serializer para criação de consulta
     """
-    parameters = serializers.ListField(
-        child=serializers.DictField(),
-        required=False,
-        help_text="Lista de parâmetros da consulta"
-    )
+    connection_id = serializers.IntegerField(write_only=True, required=False)
     
     class Meta:
         model = Query
         fields = [
-            'name', 'query', 'connection', 'timeout', 'cache_duration',
-            'parameters', 'is_active'
+            'name', 'query', 'connection', 'connection_id', 'timeout', 'cache_duration',
+            'is_active'
         ]
+        extra_kwargs = {
+            'connection': {'required': False},
+        }
+    
+    def create(self, validated_data):
+        """Criar consulta, lidando com connection_id"""
+        connection_id = validated_data.pop('connection_id', None)
+        
+        # Se connection_id foi fornecido, buscar a conexão
+        if connection_id:
+            try:
+                connection = Connection.objects.get(id=connection_id)
+                validated_data['connection'] = connection
+            except Connection.DoesNotExist:
+                raise serializers.ValidationError({'connection_id': 'Conexão não encontrada'})
+        
+        user = self.context['request'].user
+        return Query.objects.create(created_by=user, **validated_data)
+    
+    def update(self, instance, validated_data):
+        """Atualizar consulta, lidando com connection_id"""
+        print(f"=== DEBUG QueryCreateSerializer.update ===")
+        print(f"validated_data: {validated_data}")
+        
+        connection_id = validated_data.pop('connection_id', None)
+        print(f"connection_id extraído: {connection_id}")
+        
+        # Se connection_id foi fornecido, buscar a conexão
+        if connection_id:
+            try:
+                connection = Connection.objects.get(id=connection_id)
+                validated_data['connection'] = connection
+                print(f"Conexão encontrada e adicionada: {connection}")
+            except Connection.DoesNotExist:
+                print(f"ERRO: Conexão {connection_id} não encontrada")
+                raise serializers.ValidationError({'connection_id': 'Conexão não encontrada'})
+        
+        # Atualizar os campos um por um
+        for attr, value in validated_data.items():
+            print(f"Atualizando {attr} = {value}")
+            setattr(instance, attr, value)
+        
+        instance.save()
+        print("=== FIM DEBUG update ===")
+        return instance
     
     def validate_query(self, value):
         """Validar consulta SQL básica"""
@@ -465,33 +638,45 @@ class QueryCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Você não tem permissão para usar esta conexão")
         return value
     
-    def create(self, validated_data):
-        """Criar consulta com parâmetros"""
-        parameters_data = validated_data.pop('parameters', [])
-        user = self.context['request'].user
+    def validate(self, data):
+        """Validação geral simplificada"""
+        print(f"=== DEBUG QueryCreateSerializer.validate ===")
+        print(f"Dados recebidos: {data}")
         
-        # Criar consulta
-        query = Query.objects.create(created_by=user, **validated_data)
+        # Verificar se connection ou connection_id foi fornecido
+        connection_id = data.get('connection_id')
+        connection = data.get('connection')
         
-        # Criar parâmetros se fornecidos
-        for param_data in parameters_data:
-            parameter, created = Parameter.objects.get_or_create(
-                name=param_data['name'],
-                defaults={
-                    'parameter_type': param_data.get('type', 'text'),
-                    'description': param_data.get('description', ''),
-                    'created_by': user
-                }
-            )
-            
-            QueryParameter.objects.create(
-                query=query,
-                parameter=parameter,
-                default_value=param_data.get('default_value', ''),
-                is_required=param_data.get('is_required', False)
-            )
+        print(f"connection_id: {connection_id}, connection: {connection}")
         
-        return query
+        if not connection and not connection_id:
+            print("ERRO: Nenhum connection nem connection_id fornecido")
+            raise serializers.ValidationError({
+                'non_field_errors': ['Campo connection ou connection_id é obrigatório']
+            })
+        
+        # Se connection_id foi fornecido, validar que existe
+        if connection_id:
+            try:
+                connection_obj = Connection.objects.get(id=connection_id)
+                print(f"Conexão encontrada: {connection_obj.name}")
+                
+                # Verificar permissão do usuário
+                user = self.context['request'].user
+                if not user.can_view_connection(connection_obj):
+                    print("ERRO: Usuário não tem permissão para usar esta conexão")
+                    raise serializers.ValidationError({
+                        'connection_id': ['Você não tem permissão para usar esta conexão']
+                    })
+                    
+            except Connection.DoesNotExist:
+                print(f"ERRO: Conexão com ID {connection_id} não encontrada")
+                raise serializers.ValidationError({
+                    'connection_id': ['Conexão não encontrada']
+                })
+        
+        print("=== FIM DEBUG ===")
+        return data
 
 
 class QueryExecutionSerializer(serializers.Serializer):

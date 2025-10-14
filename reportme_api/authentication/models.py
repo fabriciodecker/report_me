@@ -78,19 +78,19 @@ class User(AbstractUser):
             return True
         if self.is_staff:
             return True  # Managers podem editar todas as conexões
-        return connection.owner == self  # Users podem editar apenas suas próprias conexões
+        return connection.created_by == self  # Users podem editar apenas suas próprias conexões
     
     def can_view_connection(self, connection):
         """Verificar se o usuário pode visualizar uma conexão específica"""
         if self.is_superuser or self.is_admin or self.is_staff:
             return True
-        return connection.owner == self
+        return connection.created_by == self
     
     def can_delete_connection(self, connection):
         """Verificar se o usuário pode excluir uma conexão específica"""
         if self.is_superuser or self.is_admin:
             return True
-        return connection.owner == self
+        return connection.created_by == self
     
     def can_view_project_or_connection(self, obj):
         """Método genérico para verificar permissão de visualização"""

@@ -50,6 +50,13 @@ export interface Query {
   connection_id: number;
   connection?: Connection;
   parameters: Parameter[];
+  timeout?: number;
+  cache_duration?: number;
+  created_by?: number;
+  created_by_name?: string;
+  created_at?: string;
+  updated_at?: string;
+  is_active?: boolean;
 }
 
 export interface QueryExecution {
