@@ -14,13 +14,14 @@ from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiExample
 import json
 
-from .models import Project, ProjectNode, Query, Connection, QueryParameter, Parameter, QueryExecution
+from .models import Project, ProjectNode, Query, Connection, Parameter, QueryExecution
 from .serializers import (
     ProjectSerializer, ProjectListSerializer, ProjectTreeSerializer,
     ProjectNodeSerializer, ProjectNodeCreateSerializer,
     ConnectionSerializer, ConnectionListSerializer, ConnectionTestSerializer,
     QuerySerializer, QueryListSerializer, QueryCreateSerializer,
-    QueryExecutionSerializer, QueryValidationSerializer
+    QueryExecutionSerializer, QueryValidationSerializer,
+    ParameterSerializer
 )
 from authentication.decorators import require_permission
 from authentication.audit import log_user_action
@@ -1257,8 +1258,7 @@ class QueryViewSet(viewsets.ModelViewSet):
                 action='execute_query',
                 details=f"Executada consulta: {query.name} - {result['total_records']} registros"
             )
-            print("***4")
-            print(f"Resultado da execução: {result}")
+            
             return Response(result)
             
         except Exception as e:
@@ -1267,8 +1267,7 @@ class QueryViewSet(viewsets.ModelViewSet):
                 action='execute_query',
                 details=f"Erro ao executar consulta ID {query_id}: {str(e)}"
             )
-            print("***44")
-            print(f"Erro na execução da query: {str(e)}")
+            
             return Response({
                 'success': False,
                 'error': str(e),
@@ -1839,3 +1838,138 @@ class QueryViewSet(viewsets.ModelViewSet):
                 sql = sql.replace(placeholder, str(param_value))
         
         return sql
+
+
+@extend_schema_view(
+    list=extend_schema(
+        tags=['parameters'],
+        summary='Listar parâmetros',
+        description='Listar parâmetros de uma query específica'
+    ),
+    create=extend_schema(
+        tags=['parameters'],
+        summary='Criar parâmetro',
+        description='Criar novo parâmetro para uma query'
+    ),
+    retrieve=extend_schema(
+        tags=['parameters'],
+        summary='Obter parâmetro',
+        description='Obter detalhes de um parâmetro específico'
+    ),
+    update=extend_schema(
+        tags=['parameters'],
+        summary='Atualizar parâmetro',
+        description='Atualizar informações de um parâmetro'
+    ),
+    destroy=extend_schema(
+        tags=['parameters'],
+        summary='Excluir parâmetro',
+        description='Excluir um parâmetro'
+    ),
+)
+class ParameterViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para CRUD de parâmetros de consultas
+    """
+    serializer_class = ParameterSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [SearchFilter, OrderingFilter]
+    search_fields = ['name', 'description']
+    ordering_fields = ['name', 'created_at']
+    ordering = ['name']
+    
+    def get_queryset(self):
+        """Filtrar parâmetros baseado na query"""
+        queryset = Parameter.objects.all()
+        query_id = self.request.query_params.get('query_id')
+        
+        if query_id:
+            queryset = queryset.filter(query_id=query_id)
+        
+        # Filtrar por permissões do usuário
+        user = self.request.user
+        if not (user.is_superuser or user.is_admin):
+            # Users podem ver apenas parâmetros de suas próprias queries
+            queryset = queryset.filter(query__created_by=user)
+        
+        return queryset.select_related('query')
+    
+    def perform_create(self, serializer):
+        """Criar parâmetro e logar ação"""
+        parameter = serializer.save()
+        log_user_action(
+            user=self.request.user,
+            action='create_parameter',
+            details=f"Criado parâmetro: {parameter.name} para query: {parameter.query.name}"
+        )
+    
+    def perform_update(self, serializer):
+        """Atualizar parâmetro e logar ação"""
+        old_name = self.get_object().name
+        parameter = serializer.save()
+        log_user_action(
+            user=self.request.user,
+            action='update_parameter',
+            details=f"Atualizado parâmetro: {old_name} -> {parameter.name}"
+        )
+    
+    def perform_destroy(self, instance):
+        """Excluir parâmetro e logar ação"""
+        parameter_name = instance.name
+        query_name = instance.query.name
+        instance.delete()
+        
+        log_user_action(
+            user=self.request.user,
+            action='delete_parameter',
+            details=f"Excluído parâmetro: {parameter_name} da query: {query_name}"
+        )
+    
+    @action(detail=False, methods=['post'], url_path='extract-from-sql')
+    def extract_from_sql(self, request):
+        """Extrair parâmetros de uma query SQL"""
+        sql_query = request.data.get('sql', '')
+        query_id = request.data.get('query_id')
+        
+        if not sql_query or not query_id:
+            return Response({
+                'error': 'SQL e query_id são obrigatórios'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            query = Query.objects.get(id=query_id)
+            # Verificar permissão
+            user = request.user
+            if not (user.is_superuser or user.is_admin or query.created_by == user):
+                return Response({
+                    'error': 'Sem permissão para acessar esta query'
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            # Extrair parâmetros usando o método do modelo
+            parameters = query.extract_parameters_from_sql(sql_query)
+            
+            # Verificar quais já existem
+            existing_params = Parameter.objects.filter(
+                query=query,
+                name__in=[p['name'] for p in parameters]
+            ).values_list('name', flat=True)
+            
+            # Marcar os que já existem
+            for param in parameters:
+                param['exists'] = param['name'] in existing_params
+            
+            return Response({
+                'parameters': parameters,
+                'total_found': len(parameters),
+                'new_parameters': [p for p in parameters if not p['exists']],
+                'existing_parameters': [p for p in parameters if p['exists']]
+            })
+            
+        except Query.DoesNotExist:
+            return Response({
+                'error': 'Query não encontrada'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({
+                'error': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)

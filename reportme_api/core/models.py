@@ -77,6 +77,9 @@ class Parameter(models.Model):
     default_value = models.CharField(max_length=255, blank=True, verbose_name="Valor Padrão")
     allow_multiple_values = models.BooleanField(default=False, verbose_name="Permite Múltiplos Valores")
     
+    # Relacionamento direto com Query
+    query = models.ForeignKey('Query', on_delete=models.CASCADE, related_name='query_parameters', verbose_name="Consulta")
+    
     # Validações
     min_value = models.FloatField(null=True, blank=True, verbose_name="Valor Mínimo")
     max_value = models.FloatField(null=True, blank=True, verbose_name="Valor Máximo")
@@ -107,7 +110,6 @@ class Query(models.Model):
     name = models.CharField(max_length=255, verbose_name="Nome da Consulta")
     query = models.TextField(verbose_name="Consulta SQL")
     connection = models.ForeignKey(Connection, on_delete=models.CASCADE, related_name='queries', verbose_name="Conexão")
-    parameters = models.ManyToManyField(Parameter, through='QueryParameter', blank=True, verbose_name="Parâmetros")
     
     # Configurações da consulta
     timeout = models.IntegerField(default=30, verbose_name="Timeout (segundos)")
@@ -128,28 +130,125 @@ class Query(models.Model):
     def __str__(self):
         return f"{self.name} - {self.connection.name}"
 
+    def get_sql_parameters(self):
+        """Extrair parâmetros do SQL (palavras precedidas por :)"""
+        import re
+        # Buscar por :nome_parametro (letras, números e underscore)
+        pattern = r':([a-zA-Z_][a-zA-Z0-9_]*)'
+        matches = re.findall(pattern, self.query)
+        return list(set(matches))  # Remover duplicatas
+
     def get_parameters_dict(self):
         """Retorna dicionário com os parâmetros da consulta"""
-        return {qp.parameter.name: qp.parameter for qp in self.queryparameter_set.all()}
+        return {param.name: param for param in self.query_parameters.all()}
 
+    def validate_parameters(self):
+        """Validar se todos os parâmetros do SQL têm configuração"""
+        sql_params = self.get_sql_parameters()
+        configured_params = [param.name for param in self.query_parameters.all()]
+        
+        missing_params = [param for param in sql_params if param not in configured_params]
+        extra_params = [param for param in configured_params if param not in sql_params]
+        
+        return {
+            'missing': missing_params,
+            'extra': extra_params,
+            'valid': len(missing_params) == 0 and len(extra_params) == 0
+        }
 
-class QueryParameter(models.Model):
-    """
-    Modelo intermediário para relacionamento Query-Parameter
-    Baseado nos requisitos: core_query_parameter
-    """
-    query = models.ForeignKey(Query, on_delete=models.CASCADE)
-    parameter = models.ForeignKey(Parameter, on_delete=models.CASCADE)
-    order = models.IntegerField(default=0, verbose_name="Ordem")
-    is_required = models.BooleanField(default=True, verbose_name="Obrigatório")
-
-    class Meta:
-        db_table = 'core_query_parameter'
-        unique_together = ['query', 'parameter']
-        ordering = ['order', 'parameter__name']
-
-    def __str__(self):
-        return f"{self.query.name} - {self.parameter.name}"
+    def extract_parameters_from_sql(self, sql_text=None):
+        """
+        Extrai parâmetros de uma consulta SQL (precedidos por :)
+        
+        Args:
+            sql_text (str, optional): SQL personalizado. Se None, usa self.query
+            
+        Returns:
+            list: Lista de dicionários com informações dos parâmetros
+        """
+        import re
+        
+        # Usar SQL fornecido ou da instância
+        sql_to_analyze = sql_text if sql_text is not None else self.query
+        
+        # Padrão para encontrar parâmetros :nome_parametro
+        pattern = r':([a-zA-Z_][a-zA-Z0-9_]*)'
+        matches = re.findall(pattern, sql_to_analyze)
+        
+        # Remover duplicatas mantendo ordem
+        unique_params = []
+        seen = set()
+        for param in matches:
+            if param not in seen:
+                unique_params.append(param)
+                seen.add(param)
+        
+        # Analisar contexto de cada parâmetro para sugerir tipo
+        parameters = []
+        for param in unique_params:
+            param_info = {
+                'name': param,
+                'type': self._suggest_parameter_type(param, sql_to_analyze),
+                'allow_null': True,  # Padrão
+                'allow_multiple_values': self._check_if_multiple_values(param, sql_to_analyze),
+                'default_value': None,
+                'description': f'Parâmetro extraído automaticamente: {param}'
+            }
+            parameters.append(param_info)
+        
+        return parameters
+    
+    def _suggest_parameter_type(self, param_name, sql_text):
+        """
+        Sugere o tipo do parâmetro baseado no contexto SQL
+        
+        Args:
+            param_name (str): Nome do parâmetro
+            sql_text (str): Texto SQL completo
+            
+        Returns:
+            str: Tipo sugerido ('string', 'integer', 'date', etc.)
+        """
+        import re
+        
+        # Buscar contexto do parâmetro no SQL
+        param_pattern = f':{param_name}\\b'
+        
+        # Verificar se está em contexto de data
+        if re.search(f'(DATE|TIMESTAMP|datetime).*:{param_name}', sql_text, re.IGNORECASE):
+            return 'date'
+        
+        # Verificar se está em comparação numérica
+        if re.search(f'(=|>|<|>=|<=|BETWEEN)\\s*:{param_name}', sql_text, re.IGNORECASE):
+            return 'integer'
+        
+        # Verificar se está em LIKE (provável string)
+        if re.search(f'LIKE\\s*[\'"]?%?:{param_name}', sql_text, re.IGNORECASE):
+            return 'string'
+        
+        # Verificar se está em IN() (múltiplos valores)
+        if re.search(f'IN\\s*\\([^)]*:{param_name}', sql_text, re.IGNORECASE):
+            return 'string'  # Mas allow_multiple_values será True
+        
+        # Padrão: string
+        return 'string'
+    
+    def _check_if_multiple_values(self, param_name, sql_text):
+        """
+        Verifica se o parâmetro está sendo usado em contexto de múltiplos valores (IN clause)
+        
+        Args:
+            param_name (str): Nome do parâmetro
+            sql_text (str): Texto SQL completo
+            
+        Returns:
+            bool: True se permite múltiplos valores
+        """
+        import re
+        
+        # Verificar se está em cláusula IN
+        in_pattern = f'IN\\s*\\([^)]*:{param_name}[^)]*\\)'
+        return bool(re.search(in_pattern, sql_text, re.IGNORECASE))
 
 
 class Project(models.Model):

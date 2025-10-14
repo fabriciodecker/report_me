@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Project, ProjectNode, Query, Connection, Parameter, QueryParameter
+from .models import Project, ProjectNode, Query, Connection, Parameter
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -11,7 +11,7 @@ class ProjectNodeSerializer(serializers.ModelSerializer):
     """
     children = serializers.SerializerMethodField()
     query_name = serializers.CharField(source='query.name', read_only=True)
-    connection_name = serializers.CharField(source='connection.name', read_only=True)
+    connection_name = serializers.SerializerMethodField()
     has_query = serializers.SerializerMethodField()
     node_type = serializers.SerializerMethodField()
     parent_id = serializers.IntegerField(source='parent.id', read_only=True, allow_null=True)
@@ -30,6 +30,14 @@ class ProjectNodeSerializer(serializers.ModelSerializer):
         """Retornar filhos do nó"""
         children = obj.children.all().order_by('name')
         return ProjectNodeSerializer(children, many=True, context=self.context).data
+    
+    def get_connection_name(self, obj):
+        """Obter nome da conexão - prioriza conexão direta, senão da query"""
+        if obj.connection:
+            return obj.connection.name
+        elif obj.query and obj.query.connection:
+            return obj.query.connection.name
+        return "Sem Conexão"
     
     def get_has_query(self, obj):
         """Verificar se o nó tem consulta associada"""
@@ -373,19 +381,16 @@ class ConnectionTestSerializer(serializers.Serializer):
 
 # ===== QUERY SERIALIZERS =====
 
-class QueryParameterSerializer(serializers.ModelSerializer):
+class ParameterSerializer(serializers.ModelSerializer):
     """
     Serializer para parâmetros de consulta
     """
-    parameter_name = serializers.CharField(source='parameter.name', read_only=True)
-    parameter_type = serializers.CharField(source='parameter.type', read_only=True)
-    default_value = serializers.CharField(source='parameter.default_value', read_only=True)
     
     class Meta:
-        model = QueryParameter
+        model = Parameter
         fields = [
-            'id', 'parameter', 'parameter_name', 'parameter_type', 
-            'default_value', 'is_required', 'order'
+            'id', 'name', 'type', 'allow_null', 'default_value', 'allow_multiple_values',
+            'min_value', 'max_value', 'regex_pattern', 'options', 'query'
         ]
 
 
@@ -416,7 +421,7 @@ class QueryListSerializer(serializers.ModelSerializer):
     
     def get_parameters_count(self, obj):
         """Contar parâmetros da consulta"""
-        return obj.queryparameter_set.count()
+        return obj.query_parameters.count()
     
     def get_last_execution(self, obj):
         """Última execução da consulta"""
@@ -432,124 +437,20 @@ class QueryListSerializer(serializers.ModelSerializer):
 
 class QuerySerializer(serializers.ModelSerializer):
     """
-    Serializer completo para consultas
+    Serializer para consultas
     """
-    connection_name = serializers.CharField(source='connection.name', read_only=True)
     created_by_name = serializers.CharField(source='created_by.full_name', read_only=True)
-    query_parameters = QueryParameterSerializer(source='queryparameter_set', many=True, read_only=True)
-    parameters_count = serializers.SerializerMethodField()
-    execution_history = serializers.SerializerMethodField()
+    connection_name = serializers.CharField(source='connection.name', read_only=True)
+    parameters = ParameterSerializer(source='query_parameters', many=True, read_only=True)
     
     class Meta:
         model = Query
         fields = [
-            'id', 'name', 'query', 'connection', 'connection_id', 'connection_name',
-            'timeout', 'cache_duration', 'query_parameters', 'parameters_count',
-            'execution_history', 'created_by', 'created_by_name',
-            'created_at', 'updated_at', 'is_active'
+            'id', 'name', 'query', 'connection', 'connection_name',
+            'created_by', 'created_by_name', 'parameters', 'timeout', 'cache_duration',
+            'is_active', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['created_by', 'created_at', 'updated_at']
-        extra_kwargs = {
-            'connection': {'required': False},
-            'connection_id': {'required': False},
-        }
-    
-    def to_representation(self, instance):
-        """Customizar representação para garantir connection_id"""
-        data = super().to_representation(instance)
-        # Garantir que connection_id esteja presente
-        if instance.connection_id:
-            data['connection_id'] = instance.connection_id
-        return data
-    
-    def get_parameters_count(self, obj):
-        """Contar parâmetros da consulta"""
-        try:
-            return obj.queryparameter_set.count()
-        except:
-            return 0
-    
-    def get_execution_history(self, obj):
-        """Histórico recente de execuções"""
-        try:
-            recent_executions = obj.executions.order_by('-executed_at')[:5]
-            return [
-                {
-                    'id': exec.id,
-                    'executed_at': exec.executed_at,
-                    'status': exec.status,
-                    'execution_time': exec.execution_time,
-                    'rows_returned': exec.rows_returned
-                }
-                for exec in recent_executions
-            ]
-        except:
-            return []
-    
-    def create(self, validated_data):
-        """Criar consulta"""
-        user = self.context['request'].user
-        return Query.objects.create(created_by=user, **validated_data)
-    
-    def validate_query(self, value):
-        """Validar consulta SQL básica"""
-        if not value or len(value.strip()) < 10:
-            raise serializers.ValidationError("Consulta SQL deve ter pelo menos 10 caracteres")
-        
-        # Verificações básicas de segurança
-        dangerous_keywords = ['DROP', 'DELETE', 'TRUNCATE', 'ALTER', 'CREATE', 'INSERT', 'UPDATE']
-        query_upper = value.upper()
-        
-        for keyword in dangerous_keywords:
-            if keyword in query_upper:
-                raise serializers.ValidationError(
-                    f"Consulta contém palavra-chave não permitida: {keyword}. "
-                    "Apenas consultas SELECT são permitidas."
-                )
-        
-        if not query_upper.strip().startswith('SELECT'):
-            raise serializers.ValidationError("Apenas consultas SELECT são permitidas")
-        
-        return value
-    
-    def validate_connection(self, value):
-        """Validar se o usuário tem acesso à conexão"""
-        user = self.context['request'].user
-        if not user.can_view_connection(value):
-            raise serializers.ValidationError("Você não tem permissão para usar esta conexão")
-        return value
-    
-    def validate(self, data):
-        """Validação geral"""
-        # Garantir que connection ou connection_id seja fornecido
-        connection_id = data.get('connection_id')
-        connection = data.get('connection')
-        
-        if not connection and not connection_id:
-            raise serializers.ValidationError({
-                'non_field_errors': ['Campo connection ou connection_id é obrigatório']
-            })
-        
-        # Se connection_id for fornecido, converter para connection
-        if connection_id and not connection:
-            try:
-                connection_obj = Connection.objects.get(id=connection_id)
-                # Verificar se o usuário tem permissão para usar esta conexão
-                user = self.context['request'].user
-                if not user.can_view_connection(connection_obj):
-                    raise serializers.ValidationError({
-                        'connection': ['Você não tem permissão para usar esta conexão']
-                    })
-                data['connection'] = connection_obj
-                # Remove connection_id para evitar conflitos
-                if 'connection_id' in data:
-                    del data['connection_id']
-            except Connection.DoesNotExist:
-                raise serializers.ValidationError({
-                    'connection_id': ['Conexão não encontrada']
-                })
-        
-        return data
+        read_only_fields = ['created_at', 'updated_at', 'created_by']
 
 
 class QueryCreateSerializer(serializers.ModelSerializer):

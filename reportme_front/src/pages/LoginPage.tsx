@@ -30,11 +30,10 @@ const LoginPage: React.FC = () => {
       const success = await login(username, password);
       if (success) {
         navigate('/dashboard');
-      } else {
-        setError('Usuário ou senha incorretos');
       }
-    } catch (err) {
-      setError('Erro ao fazer login. Tente novamente.');
+    } catch (err: any) {
+      // Usar a mensagem específica do erro retornado pelo AuthContext
+      setError(err.message || 'Erro ao fazer login. Tente novamente.');
     } finally {
       setIsLoading(false);
     }

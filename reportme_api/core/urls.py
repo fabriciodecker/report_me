@@ -8,7 +8,7 @@ router.register(r'projects', views.ProjectViewSet, basename='project')
 router.register(r'project-nodes', views.ProjectNodeViewSet, basename='projectnode')
 router.register(r'connections', views.ConnectionViewSet, basename='connection')
 router.register(r'queries', views.QueryViewSet, basename='query')
-# router.register(r'parameters', views.ParameterViewSet)
+router.register(r'parameters', views.ParameterViewSet, basename='parameter')
 
 urlpatterns = [
     path('', include(router.urls)),

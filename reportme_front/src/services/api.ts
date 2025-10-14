@@ -38,6 +38,22 @@ api.interceptors.response.use(
   (response: AxiosResponse) => response,
   async (error) => {
     const originalRequest = error.config;
+    
+    // Melhor tratamento de erros de rede
+    if (!error.response) {
+      // Erro de rede (servidor não alcançável)
+      if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+        error.isNetworkError = true;
+        error.message = 'Servidor não foi alcançado. Verifique sua conexão ou se o servidor está funcionando.';
+      } else if (error.code === 'ECONNREFUSED') {
+        error.isNetworkError = true;
+        error.message = 'Conexão recusada. Verifique se o servidor está rodando.';
+      } else if (error.request) {
+        error.isNetworkError = true;
+        error.message = 'Não foi possível conectar ao servidor. Verifique sua conexão de internet.';
+      }
+      return Promise.reject(error);
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;

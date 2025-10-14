@@ -410,7 +410,7 @@ const ProjectNodesPage: React.FC = () => {
                   <Typography variant="caption" color="text.secondary">
                     {node.query_id ? (() => {
                       const query = queries.find(q => q.id === node.query_id);
-                      return query?.connection?.name ? `� Conexão: ${query.connection.name}` : '📄 Query associada';
+                      return query?.connection_name ? `🔗 Conexão: ${query.connection_name}` : '📄 Query associada';
                     })() : nodeHasChildren ? (
                       `📁 Pasta (${children.length} ${children.length === 1 ? 'item' : 'itens'})`
                     ) : (
@@ -722,7 +722,7 @@ const ProjectNodesPage: React.FC = () => {
                 </MenuItem>
                 {queries.map((query) => (
                   <MenuItem key={query.id} value={query.id}>
-                    {query.name} - {query.connection?.name || 'Sem conexão'}
+                    {query.name} - {query.connection_name || 'Sem conexão'}
                   </MenuItem>
                 ))}
               </Select>

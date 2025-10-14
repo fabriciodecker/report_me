@@ -1,5 +1,13 @@
 from django.contrib import admin
-from .models import Connection, Parameter, Query, QueryParameter, Project, ProjectNode, QueryExecution
+from .models import Connection, Parameter, Query, Project, ProjectNode, QueryExecution
+
+
+@admin.register(Project)
+class ProjectAdmin(admin.ModelAdmin):
+    list_display = ['name', 'owner', 'created_at', 'is_active']
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['name', 'description']
+    readonly_fields = ['created_at', 'updated_at']
 
 
 @admin.register(Connection)
@@ -26,17 +34,21 @@ class ConnectionAdmin(admin.ModelAdmin):
     )
 
 
+class ParameterInline(admin.TabularInline):
+    model = Parameter
+    extra = 1
+    fields = ['name', 'type', 'allow_null', 'allow_multiple_values', 'default_value']
+
+
 @admin.register(Parameter)
 class ParameterAdmin(admin.ModelAdmin):
-    list_display = ['name', 'type', 'allow_null', 'allow_multiple_values', 'created_at']
+    list_display = ['name', 'type', 'query', 'allow_null', 'allow_multiple_values', 'created_at']
     list_filter = ['type', 'allow_null', 'allow_multiple_values']
-    search_fields = ['name']
+    search_fields = ['name', 'query__name']
     readonly_fields = ['created_at', 'updated_at']
-
-
-class QueryParameterInline(admin.TabularInline):
-    model = QueryParameter
-    extra = 1
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('query')
 
 
 @admin.register(Query)
@@ -45,7 +57,7 @@ class QueryAdmin(admin.ModelAdmin):
     list_filter = ['connection', 'is_active', 'created_at']
     search_fields = ['name', 'query']
     readonly_fields = ['created_at', 'updated_at']
-    inlines = [QueryParameterInline]
+    inlines = [ParameterInline]
     
     fieldsets = (
         ('Informações Básicas', {
@@ -91,35 +103,6 @@ class ProjectNodeAdmin(admin.ModelAdmin):
         }),
         ('Informações da Árvore', {
             'fields': ('level', 'path'),
-            'classes': ('collapse',)
-        }),
-        ('Auditoria', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
-
-
-@admin.register(Project)
-class ProjectAdmin(admin.ModelAdmin):
-    list_display = ['name', 'owner', 'is_public', 'is_active', 'created_at']
-    list_filter = ['is_public', 'is_active', 'created_at']
-    search_fields = ['name', 'description']
-    readonly_fields = ['created_at', 'updated_at', 'first_node']
-    filter_horizontal = ['shared_with']
-    
-    fieldsets = (
-        ('Informações Básicas', {
-            'fields': ('name', 'description')
-        }),
-        ('Permissões', {
-            'fields': ('owner', 'shared_with', 'is_public')
-        }),
-        ('Configurações', {
-            'fields': ('is_active',)
-        }),
-        ('Estrutura', {
-            'fields': ('first_node',),
             'classes': ('collapse',)
         }),
         ('Auditoria', {

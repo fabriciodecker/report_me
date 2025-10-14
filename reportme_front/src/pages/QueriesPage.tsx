@@ -320,11 +320,28 @@ const QueriesPage: React.FC = () => {
         severity: 'success',
       });
       
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao executar query:', err);
+      
+      // Extrair mensagem de erro específica da API
+      let errorMessage = 'Erro desconhecido ao executar query';
+      
+      if (err.response?.data) {
+        // Se a API retornou uma estrutura de erro
+        if (err.response.data.error) {
+          errorMessage = err.response.data.error;
+        } else if (err.response.data.message) {
+          errorMessage = err.response.data.message;
+        } else if (typeof err.response.data === 'string') {
+          errorMessage = err.response.data;
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
       setSnackbar({
         open: true,
-        message: 'Erro ao executar query. Verifique os logs.',
+        message: `Erro ao executar query: ${errorMessage}`,
         severity: 'error',
       });
     } finally {
@@ -355,11 +372,28 @@ const QueriesPage: React.FC = () => {
         severity: 'success',
       });
       
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao executar query:', err);
+      
+      // Extrair mensagem de erro específica da API
+      let errorMessage = 'Erro desconhecido ao executar query';
+      
+      if (err.response?.data) {
+        // Se a API retornou uma estrutura de erro
+        if (err.response.data.error) {
+          errorMessage = err.response.data.error;
+        } else if (err.response.data.message) {
+          errorMessage = err.response.data.message;
+        } else if (typeof err.response.data === 'string') {
+          errorMessage = err.response.data;
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
       setSnackbar({
         open: true,
-        message: 'Erro ao executar query. Verifique os logs.',
+        message: `Erro ao executar query "${query.name}": ${errorMessage}`,
         severity: 'error',
       });
     }

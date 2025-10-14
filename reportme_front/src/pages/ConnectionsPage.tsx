@@ -38,6 +38,7 @@ import { Connection } from '../types';
 import { connectionService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { getErrorMessage } from '../utils/errorHandler';
 
 interface ConnectionForm {
   name: string;
@@ -95,7 +96,7 @@ const ConnectionsPage: React.FC = () => {
       setError(null);
     } catch (err) {
       console.error('Erro ao carregar conexões:', err);
-      setError('Erro ao carregar conexões');
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }

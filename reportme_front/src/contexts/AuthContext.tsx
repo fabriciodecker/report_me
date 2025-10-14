@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authService, UserProfile } from '../services/api';
+import { getErrorMessage } from '../utils/errorHandler';
 
 interface User {
   username: string;
@@ -71,9 +72,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
       
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro no login:', error);
-      return false;
+      
+      // Usar o utilitário para obter mensagem de erro apropriada
+      const errorMessage = getErrorMessage(error);
+      throw new Error(errorMessage);
     }
   };
 

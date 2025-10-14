@@ -49,6 +49,7 @@ export interface Query {
   query: string;
   connection_id: number;
   connection?: Connection;
+  connection_name?: string; // Nome da conexão vindo do backend
   parameters: Parameter[];
   timeout?: number;
   cache_duration?: number;
