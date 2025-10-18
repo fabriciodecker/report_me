@@ -248,9 +248,9 @@ class ProjectTreeSerializer(serializers.ModelSerializer):
     
     def get_tree(self, obj):
         """Retornar árvore completa do projeto"""
-        if obj.first_node:
-            return ProjectNodeSerializer(obj.first_node, context=self.context).data
-        return None
+        # Retornar todos os nós do projeto, não apenas o primeiro
+        nodes = obj.nodes.all().order_by('parent_id', 'name')
+        return ProjectNodeSerializer(nodes, many=True, context=self.context).data
 
 
 class ConnectionSerializer(serializers.ModelSerializer):

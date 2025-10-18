@@ -5,6 +5,7 @@ import {
   ProjectNode, 
   Connection, 
   Query, 
+  Parameter,
   PaginatedResponse 
 } from '../types';
 
@@ -23,20 +24,27 @@ const api: AxiosInstance = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('access_token');
+    console.log('🔑 Token no interceptor:', token ? 'EXISTS' : 'NOT_FOUND');
+    console.log('🌐 Fazendo requisição para:', config.url);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
   (error) => {
+    console.error('❌ Erro no interceptor de request:', error);
     return Promise.reject(error);
   }
 );
 
 // Interceptor para tratar respostas e refresh token
 api.interceptors.response.use(
-  (response: AxiosResponse) => response,
+  (response: AxiosResponse) => {
+    console.log('✅ Resposta da API:', response.status, response.config.url);
+    return response;
+  },
   async (error) => {
+    console.error('❌ Erro na resposta da API:', error.response?.status, error.config?.url);
     const originalRequest = error.config;
     
     // Melhor tratamento de erros de rede
@@ -162,7 +170,7 @@ export const projectService = {
 
   getTree: async (id: number): Promise<ProjectNode[]> => {
     const response = await api.get(`/core/projects/${id}/tree/`);
-    return response.data;
+    return response.data.tree || [];
   },
 };
 
@@ -285,9 +293,45 @@ export const queryService = {
     return response.data;
   },
 
+  extractParameters: async (sql: string, query_id: number): Promise<any> => {
+    const response = await api.post('/core/parameters/extract-from-sql/', { 
+      sql, 
+      query_id 
+    });
+    return response.data;
+  },
+
   duplicate: async (id: number): Promise<Query> => {
     const response = await api.post(`/core/queries/${id}/duplicate/`);
     return response.data;
+  },
+};
+
+// Serviços para Parâmetros
+export const parameterService = {
+  getAll: async (query_id?: number): Promise<PaginatedResponse<Parameter>> => {
+    const params = query_id ? { query_id } : {};
+    const response = await api.get('/core/parameters/', { params });
+    return response.data;
+  },
+
+  getById: async (id: number): Promise<Parameter> => {
+    const response = await api.get(`/core/parameters/${id}/`);
+    return response.data;
+  },
+
+  create: async (data: Partial<Parameter>): Promise<Parameter> => {
+    const response = await api.post('/core/parameters/', data);
+    return response.data;
+  },
+
+  update: async (id: number, data: Partial<Parameter>): Promise<Parameter> => {
+    const response = await api.put(`/core/parameters/${id}/`, data);
+    return response.data;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/core/parameters/${id}/`);
   },
 };
 

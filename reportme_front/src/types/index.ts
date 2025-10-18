@@ -36,10 +36,15 @@ export interface ConnectionTest {
 export interface Parameter {
   id: number;
   name: string;
-  type: 'string' | 'number' | 'date' | 'boolean';
+  type: 'string' | 'number' | 'date' | 'datetime' | 'boolean' | 'list';
   allow_null: boolean;
   default_value?: string;
   allow_multiple_values: boolean;
+  min_value?: number;
+  max_value?: number;
+  regex_pattern?: string;
+  options?: string[];
+  description?: string; // Adicionando propriedade description
 }
 
 // Tipos para consultas SQL
@@ -58,6 +63,7 @@ export interface Query {
   created_at?: string;
   updated_at?: string;
   is_active?: boolean;
+  description?: string; // Adicionando propriedade description
 }
 
 export interface QueryExecution {
@@ -79,10 +85,12 @@ export interface ProjectNode {
   id: number;
   name: string;
   parent_id?: number;
-  query_id?: number;
+  parent?: number; // Alias para parent_id
+  query_id?: number | null;
   connection_id?: number;
   children: ProjectNode[];
   query?: Query;
+  description?: string; // Adicionando propriedade description
 }
 
 // Tipos para projetos

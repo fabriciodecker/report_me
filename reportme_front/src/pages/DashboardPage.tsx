@@ -1,33 +1,33 @@
 import React from 'react';
-import { Container, Typography, Paper, Box, Button } from '@mui/material';
+import { Typography, Paper, Box, Chip } from '@mui/material';
+import Layout from '../components/Layout';
 import { FolderOpen, Dashboard, Settings, Storage as QueryIcon } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const DashboardPage: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   return (
-    <Container maxWidth="lg">
-      <Box sx={{ marginTop: 4 }}>
-        <Paper elevation={3} sx={{ padding: 4 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Typography variant="h4" component="h1">
-              Dashboard - ReportMe
-            </Typography>
-            <Button variant="outlined" onClick={logout}>
-              Sair
-            </Button>
-          </Box>
-          
-          <Typography variant="h6" gutterBottom>
-            Bem-vindo, {user?.username}!
+    <Layout>
+      <Paper sx={{ p: 3 }}>
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h4" gutterBottom>
+            Portal de Administração
           </Typography>
-          
-          <Typography variant="body1" color="textSecondary">
-            Sistema de relatórios funcionando! 🎉
+          <Typography variant="body1" color="text.secondary" gutterBottom>
+            Bem-vindo, {user?.username}! Gerencie projetos, conexões e consultas do sistema.
           </Typography>
+          {user?.is_staff && (
+            <Chip 
+              label="Administrador" 
+              color="primary" 
+              size="small" 
+              sx={{ mt: 1 }}
+            />
+          )}
+        </Box>
           
           <Box sx={{ mt: 3 }}>
             <Typography variant="h6" gutterBottom>
@@ -108,9 +108,8 @@ const DashboardPage: React.FC = () => {
               </Paper>
             </Box>
           </Box>
-        </Paper>
-      </Box>
-    </Container>
+      </Paper>
+    </Layout>
   );
 };
 

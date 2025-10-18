@@ -21,6 +21,7 @@ import {
   Card,
   CardContent,
   Collapse,
+  Chip,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -39,11 +40,12 @@ import { ProjectNode, Project, Query } from '../types';
 import { projectNodeService, projectService, queryService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, useParams } from 'react-router-dom';
+import Layout from '../components/Layout';
 
 interface NodeForm {
   name: string;
   parent_id?: number;
-  query_id?: number;
+  query_id?: number | null;
 }
 
 const ProjectNodesPage: React.FC = () => {
@@ -69,7 +71,7 @@ const ProjectNodesPage: React.FC = () => {
   const [formData, setFormData] = useState<NodeForm>({
     name: '',
     parent_id: undefined,
-    query_id: undefined,
+    query_id: null,
   });
   
   // Snackbar state
@@ -149,7 +151,7 @@ const ProjectNodesPage: React.FC = () => {
     setFormData({
       name: '',
       parent_id: parentNode?.id,
-      query_id: undefined,
+      query_id: null,
     });
     setDialogOpen(true);
   };
@@ -161,7 +163,7 @@ const ProjectNodesPage: React.FC = () => {
     setFormData({
       name: node.name,
       parent_id: node.parent_id,
-      query_id: node.query_id,
+      query_id: node.query_id || null, // Garantir que seja null ao invés de undefined
     });
     setDialogOpen(true);
   };
@@ -170,10 +172,12 @@ const ProjectNodesPage: React.FC = () => {
   const handleSaveNode = async () => {
     try {
       const projectIdNum = parseInt(projectId!);
+      // Preparar dados para salvar, garantindo que query_id seja sempre incluído
       const dataToSave = { 
         ...formData,
         project: projectIdNum, // Usando 'project' como chave
-        project_id: projectIdNum // Usando 'project_id' como backup
+        project_id: projectIdNum, // Usando 'project_id' como backup
+        query_id: formData.query_id === undefined ? null : formData.query_id
       };
 
       console.log('Dados a serem salvos:', dataToSave);
@@ -573,9 +577,25 @@ const ProjectNodesPage: React.FC = () => {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Breadcrumbs */}
-      <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 2 }}>
+    <Layout>
+      <Paper sx={{ p: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          <TreeIcon sx={{ mr: 2, fontSize: 32, color: 'primary.main' }} />
+          <Box>
+            <Typography variant="h4" component="h1" gutterBottom>
+              Estrutura do Projeto: {project?.name}
+            </Typography>
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 1 }}>
+              Organize e gerencie a estrutura hierárquica de nós do projeto
+            </Typography>
+            <Chip label="Portal Admin" size="small" color="primary" />
+          </Box>
+        </Box>
+      </Paper>
+
+      <Box sx={{ p: 3 }}>
+        {/* Breadcrumbs */}
+        <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 2 }}>
         <Link
           color="inherit"
           href="#"
@@ -714,7 +734,7 @@ const ProjectNodesPage: React.FC = () => {
                 label="Query (Opcional)"
                 onChange={(e) => setFormData({ 
                   ...formData, 
-                  query_id: e.target.value ? Number(e.target.value) : undefined 
+                  query_id: e.target.value ? Number(e.target.value) : null 
                 })}
               >
                 <MenuItem value="">
@@ -894,7 +914,8 @@ const ProjectNodesPage: React.FC = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
-    </Box>
+      </Box>
+    </Layout>
   );
 };
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Layout from '../components/Layout';
 import {
   Box,
   Button,
@@ -260,9 +261,19 @@ const ConnectionsPage: React.FC = () => {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Breadcrumbs */}
-      <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 2 }}>
+    <Layout>
+      <Paper sx={{ p: 3 }}>
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h4" gutterBottom>
+            Gestão de Conexões
+          </Typography>
+          <Typography variant="body1" color="text.secondary" gutterBottom>
+            Configure e teste conexões com bancos de dados para suas consultas.
+          </Typography>
+        </Box>
+
+        {/* Breadcrumbs */}
+        <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 2 }}>
         <Link
           color="inherit"
           href="#"
@@ -531,7 +542,8 @@ const ConnectionsPage: React.FC = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
-    </Box>
+      </Paper>
+    </Layout>
   );
 };
 

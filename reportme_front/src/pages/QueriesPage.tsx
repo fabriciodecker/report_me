@@ -28,6 +28,8 @@ import {
   TableRow,
   Chip,
   Divider,
+  Switch,
+  FormControlLabel,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -40,11 +42,14 @@ import {
   Timer as TimerIcon,
   Memory as CacheIcon,
   Link as ConnectionIcon,
+  Settings as SettingsIcon,
 } from '@mui/icons-material';
-import { Query, Connection } from '../types';
-import { queryService, connectionService } from '../services/api';
+import { Query, Connection, Parameter } from '../types';
+import { queryService, connectionService, parameterService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import ParameterEditDialog from '../components/ParameterEditDialog';
+import Layout from '../components/Layout';
 
 interface QueryForm {
   name: string;
@@ -67,11 +72,15 @@ const QueriesPage: React.FC = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [resultsDialogOpen, setResultsDialogOpen] = useState(false);
+  const [parametersDialogOpen, setParametersDialogOpen] = useState(false);
+  const [parameterInputDialogOpen, setParameterInputDialogOpen] = useState(false);
   const [editingQuery, setEditingQuery] = useState<Query | null>(null);
   const [queryToDelete, setQueryToDelete] = useState<Query | null>(null);
   const [queryResults, setQueryResults] = useState<any>(null);
   const [executingQuery, setExecutingQuery] = useState(false);
   const [dialogQueryResults, setDialogQueryResults] = useState<any>(null);
+  const [currentParameters, setCurrentParameters] = useState<Parameter[]>([]);
+  const [parameterValues, setParameterValues] = useState<Record<string, any>>({});
   
   // Form state
   const [formData, setFormData] = useState<QueryForm>({
@@ -133,10 +142,21 @@ const QueriesPage: React.FC = () => {
   };
 
   // Abrir dialog para editar query
-  const handleEditQuery = (query: Query) => {
+  const handleEditQuery = async (query: Query) => {
     console.log('Editando query:', query);
     setEditingQuery(query);
     setDialogQueryResults(null);
+    
+    // Carregar parâmetros da query do backend
+    try {
+      const paramsResponse = await parameterService.getAll(query.id);
+      const params = paramsResponse.results || paramsResponse;
+      setCurrentParameters(Array.isArray(params) ? params : []);
+    } catch (error) {
+      console.error('Erro ao carregar parâmetros:', error);
+      setCurrentParameters(query.parameters || []);
+    }
+    
     setFormData({
       name: query.name || '',
       query: query.query || '',
@@ -145,6 +165,96 @@ const QueriesPage: React.FC = () => {
       cache_duration: query.cache_duration || 0,
     });
     setDialogOpen(true);
+  };
+
+  // Abrir dialog de edição de parâmetros
+  const handleEditParameters = () => {
+    setParametersDialogOpen(true);
+  };
+
+  // Salvar parâmetros editados
+  const handleSaveParameters = async (parameters: Parameter[]) => {
+    setCurrentParameters(parameters);
+    
+    // Salvar imediatamente no backend se estivermos editando uma query existente
+    if (editingQuery && editingQuery.id) {
+      try {
+        await saveParametersToBackend(editingQuery.id, parameters);
+        setSnackbar({
+          open: true,
+          message: 'Parâmetros salvos com sucesso no banco de dados!',
+          severity: 'success',
+        });
+      } catch (error) {
+        setSnackbar({
+          open: true,
+          message: 'Erro ao salvar parâmetros no banco de dados',
+          severity: 'error',
+        });
+      }
+    } else {
+      // Para queries novas, manter localmente até a query ser salva
+      setSnackbar({
+        open: true,
+        message: 'Parâmetros atualizados localmente. Salve a query para persistir as mudanças.',
+        severity: 'info',
+      });
+    }
+  };
+
+  // Salvar parâmetros no backend
+  const saveParametersToBackend = async (queryId: number, parametersToSave?: Parameter[]) => {
+    const parametersToUse = parametersToSave || currentParameters;
+    
+    try {
+      console.log(`Salvando ${parametersToUse.length} parâmetros para query ${queryId}`);
+      
+      // Primeiro, buscar parâmetros existentes da query
+      const existingParamsResponse = await parameterService.getAll(queryId);
+      const existingParams = existingParamsResponse.results || existingParamsResponse;
+      const existingParamsList = Array.isArray(existingParams) ? existingParams : [];
+      
+      console.log('Parâmetros existentes:', existingParamsList);
+
+      // Deletar parâmetros que foram removidos
+      for (const existingParam of existingParamsList) {
+        const stillExists = parametersToUse.some(p => p.name === existingParam.name);
+        if (!stillExists) {
+          console.log(`Deletando parâmetro: ${existingParam.name} (ID: ${existingParam.id})`);
+          await parameterService.delete(existingParam.id);
+        }
+      }
+
+      // Criar ou atualizar parâmetros
+      for (const param of parametersToUse) {
+        const paramData = {
+          name: param.name,
+          type: param.type,
+          allow_null: param.allow_null,
+          default_value: param.default_value || '',
+          allow_multiple_values: param.allow_multiple_values,
+          query: queryId,
+        };
+
+        // Verificar se já existe pelo nome (já que IDs podem ser temporários)
+        const existingParam = existingParamsList.find(ep => ep.name === param.name);
+        
+        if (existingParam) {
+          // Atualizar existente
+          console.log(`Atualizando parâmetro: ${param.name} (ID: ${existingParam.id})`);
+          await parameterService.update(existingParam.id, paramData);
+        } else {
+          // Criar novo
+          console.log(`Criando novo parâmetro: ${param.name}`);
+          await parameterService.create(paramData);
+        }
+      }
+
+      console.log(`Parâmetros salvos com sucesso para query ${queryId}`);
+    } catch (error) {
+      console.error('Erro ao salvar parâmetros:', error);
+      throw error; // Re-throw para que o caller possa tratar
+    }
   };
 
   // Salvar query (criar ou editar)
@@ -188,24 +298,40 @@ const QueriesPage: React.FC = () => {
       console.log('Dados sendo enviados para o backend:', dataToSave);
 
       if (editingQuery) {
+        // Atualizar query existente
         await queryService.update(editingQuery.id, dataToSave);
+        
+        // Salvar parâmetros se houver alterações (mas só se não foram salvos recentemente)
+        await saveParametersToBackend(editingQuery.id, currentParameters);
+        
         setSnackbar({
           open: true,
           message: 'Query atualizada com sucesso!',
           severity: 'success',
         });
+        
+        // Não fechar o dialog ao atualizar - apenas recarregar dados
+        await loadData();
       } else {
-        await queryService.create(dataToSave);
+        // Criar nova query
+        const newQuery = await queryService.create(dataToSave);
+        
+        // Salvar parâmetros para a nova query
+        if (newQuery && newQuery.id && currentParameters.length > 0) {
+          await saveParametersToBackend(newQuery.id, currentParameters);
+        }
+        
         setSnackbar({
           open: true,
           message: 'Query criada com sucesso!',
           severity: 'success',
         });
+        
+        // Fechar dialog apenas ao criar nova query
+        setDialogOpen(false);
+        setDialogQueryResults(null);
+        await loadData();
       }
-      
-      setDialogOpen(false);
-      setDialogQueryResults(null);
-      await loadData();
     } catch (err) {
       console.error('Erro ao salvar query:', err);
       
@@ -292,25 +418,46 @@ const QueriesPage: React.FC = () => {
       return;
     }
 
+    // Se estivermos editando uma query existente, usar o ID dela
+    let queryId = editingQuery?.id;
+    
+    if (!queryId) {
+      // Para queries novas, precisamos salvar primeiro
+      setSnackbar({
+        open: true,
+        message: 'Salve a query primeiro para poder executá-la',
+        severity: 'warning',
+      });
+      return;
+    }
+
+    // Verificar se há parâmetros configurados
+    const requiredParameters = currentParameters.filter(p => !p.allow_null && !p.default_value);
+    const hasParameters = currentParameters.length > 0;
+
+    if (hasParameters) {
+      // Abrir dialog para coletar valores de parâmetros
+      const defaultValues: Record<string, any> = {};
+      currentParameters.forEach(param => {
+        if (param.default_value) {
+          defaultValues[param.name] = param.default_value;
+        }
+      });
+      setParameterValues(defaultValues);
+      setParameterInputDialogOpen(true);
+    } else {
+      // Executar diretamente sem parâmetros
+      executeQueryWithParameters({});
+    }
+  };
+
+  // Executar query com parâmetros fornecidos
+  const executeQueryWithParameters = async (parameters: Record<string, any>) => {
     try {
       setExecutingQuery(true);
       setDialogQueryResults(null);
 
-      // Se estivermos editando uma query existente, usar o ID dela
-      // Senão, criar uma query temporária para execução
-      let queryId = editingQuery?.id;
-      
-      if (!queryId) {
-        // Para queries novas, precisamos salvar primeiro
-        setSnackbar({
-          open: true,
-          message: 'Salve a query primeiro para poder executá-la',
-          severity: 'warning',
-        });
-        return;
-      }
-
-      const result = await queryService.execute(queryId, {});
+      const result = await queryService.execute(editingQuery!.id, parameters);
       console.log('Resultado da execução da query:', result);
       setDialogQueryResults(result);
       
@@ -419,9 +566,25 @@ const QueriesPage: React.FC = () => {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Breadcrumbs */}
-      <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 2 }}>
+    <Layout>
+      <Paper sx={{ p: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          <QueryIcon sx={{ mr: 2, fontSize: 32, color: 'primary.main' }} />
+          <Box>
+            <Typography variant="h4" component="h1" gutterBottom>
+              Gestão de Queries
+            </Typography>
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 1 }}>
+              Configure e gerencie as consultas SQL que alimentam seus relatórios
+            </Typography>
+            <Chip label="Portal Admin" size="small" color="primary" />
+          </Box>
+        </Box>
+      </Paper>
+
+      <Box sx={{ p: 3 }}>
+        {/* Breadcrumbs */}
+        <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 2 }}>
         <Link
           color="inherit"
           href="#"
@@ -770,6 +933,14 @@ const QueriesPage: React.FC = () => {
           <Button onClick={() => setDialogOpen(false)}>
             Cancelar
           </Button>
+          <Button 
+            onClick={handleEditParameters}
+            startIcon={<SettingsIcon />}
+            disabled={!formData.query?.trim()}
+            color="secondary"
+          >
+            Editar Parâmetros
+          </Button>
           {editingQuery && (
             <Button 
               onClick={handleExecuteQueryInDialog}
@@ -926,6 +1097,109 @@ const QueriesPage: React.FC = () => {
         </DialogActions>
       </Dialog>
 
+      {/* Dialog para entrada de parâmetros */}
+      <Dialog 
+        open={parameterInputDialogOpen} 
+        onClose={() => setParameterInputDialogOpen(false)}
+        maxWidth="sm" 
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <PlayIcon sx={{ mr: 1, color: 'success.main' }} />
+            Executar Query - Parâmetros
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 1 }}>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Forneça valores para os parâmetros da query:
+            </Typography>
+            
+            {currentParameters.map((parameter) => (
+              <Box key={parameter.id} sx={{ mb: 2 }}>
+                {parameter.type === 'boolean' ? (
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={parameterValues[parameter.name] || false}
+                        onChange={(e) => setParameterValues({
+                          ...parameterValues,
+                          [parameter.name]: e.target.checked
+                        })}
+                      />
+                    }
+                    label={parameter.name}
+                  />
+                ) : parameter.type === 'list' ? (
+                  <FormControl fullWidth>
+                    <InputLabel>{parameter.name}</InputLabel>
+                    <Select
+                      value={parameterValues[parameter.name] || ''}
+                      label={parameter.name}
+                      onChange={(e) => setParameterValues({
+                        ...parameterValues,
+                        [parameter.name]: e.target.value
+                      })}
+                    >
+                      {(parameter.options || []).map((option: string, index: number) => (
+                        <MenuItem key={index} value={option}>
+                          {option}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                ) : (
+                  <TextField
+                    fullWidth
+                    label={parameter.name}
+                    type={parameter.type === 'number' ? 'number' : 
+                          parameter.type === 'date' ? 'date' : 
+                          parameter.type === 'datetime' ? 'datetime-local' : 'text'}
+                    value={parameterValues[parameter.name] || ''}
+                    onChange={(e) => setParameterValues({
+                      ...parameterValues,
+                      [parameter.name]: e.target.value
+                    })}
+                    helperText={
+                      parameter.allow_null ? 'Opcional' : 'Obrigatório'
+                    }
+                    required={!parameter.allow_null && !parameter.default_value}
+                    InputLabelProps={parameter.type === 'date' || parameter.type === 'datetime' ? { shrink: true } : undefined}
+                  />
+                )}
+              </Box>
+            ))}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setParameterInputDialogOpen(false)}>
+            Cancelar
+          </Button>
+          <Button 
+            onClick={() => {
+              setParameterInputDialogOpen(false);
+              executeQueryWithParameters(parameterValues);
+            }}
+            variant="contained"
+            startIcon={<PlayIcon />}
+            color="success"
+          >
+            Executar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog de edição de parâmetros */}
+      <ParameterEditDialog
+        open={parametersDialogOpen}
+        onClose={() => setParametersDialogOpen(false)}
+        queryId={editingQuery?.id}
+        sqlText={formData.query}
+        parameters={currentParameters}
+        onSave={handleSaveParameters}
+      />
+
       {/* Snackbar para feedback */}
       <Snackbar
         open={snackbar.open}
@@ -940,7 +1214,8 @@ const QueriesPage: React.FC = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
-    </Box>
+      </Box>
+    </Layout>
   );
 };
 

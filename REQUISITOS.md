@@ -33,7 +33,10 @@ RF-006 - API - CRUD Consulta
 RF-007 - API - CRUD Consulta-Parâmetro
     - Cadastro do parâmetro sempre associado a uma consulta
     - Um parâmetro está sempre associado a uma consulta
+    
 RF-008 - API - Rodar consulta
+    - 
+
     
 
 
@@ -50,11 +53,16 @@ RF-203 - FrontEnd - Admin CRUD Conextão
     - Botão para teste da conexão
 RF-204 - FrontEnd - Admin CRUD Consulta
     - Espaço para escrever a consulta
-    - A consulta pode ter parâmetros identificados pelo prefixo @
+    - A consulta pode ter parâmetros identificados pelo prefixo ":"
+    - - Na tela de edição de consulta deve haver um botão para edição de parâmetros. Ao acionado abrir uma tela com a edição dos parâmetros da query. Nesta tela deve haver um botão para check dos parâmetros. Este check deve fazer a conferência com a lista de parâmetros criada com os parâmetros existentes no texto da query e exibir mensagem de ok ou erro, no caso de algum parâmetro sobrando ou faltando. A associação deve ser por nome.
+    - Ao salvar os parâmetros eles devem ser persistidos no banco e não localmente.
+    - Ao clicar em "Atualizar" a query, a tela de edição não deve ser fechada (apenas ao criar nova query).
 RF-205 - FrontEnd - Admin Rodar Consulta em ambiente de teste
     - No cadastro da consulta deve ter um botão para teste da consulta
+    - Caso a tela tenha parâmetros disponibilizar campos para o usuário preencher.
     - Resultado deve ser apresentado em forma de grid paginado
 RF-206 - FrontEnd - Leitor Projetos
+    - O login de um usuário admin deve apresentar o portal em formato leitura e um botão chamado "Manage" no topo para apresentar o portal Admin. O usuário comum tem a mesma interface porém sem acesso a este botão com a área administrativa.
     - Deve apresentar os projetos em uma lista e ao escolher um apresentar a árvore. O projeto deve ser apresentado em forma de árvore. Na tela central listar os filhos do nó selecionado. O nó que tem consulta associada deve ter um ícone diferente.
 RF-208 - FrontEnd - Leitor Rodar Consulta
     - Ao executar alguma consulta no Leitor de projetos, alternar para a tela de resultado contendo um grid paginado com os resultados.

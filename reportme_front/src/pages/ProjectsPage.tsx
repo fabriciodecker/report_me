@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Layout from '../components/Layout';
 import {
   Box,
   Button,
@@ -173,9 +174,19 @@ const ProjectsPage: React.FC = () => {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Breadcrumbs */}
-      <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 2 }}>
+    <Layout>
+      <Paper sx={{ p: 3 }}>
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h4" gutterBottom>
+            Gestão de Projetos
+          </Typography>
+          <Typography variant="body1" color="text.secondary" gutterBottom>
+            Gerencie projetos e sua estrutura hierárquica de relatórios.
+          </Typography>
+        </Box>
+
+        {/* Breadcrumbs */}
+        <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 2 }}>
         <Link
           color="inherit"
           href="#"
@@ -366,7 +377,8 @@ const ProjectsPage: React.FC = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
-    </Box>
+      </Paper>
+    </Layout>
   );
 };
 

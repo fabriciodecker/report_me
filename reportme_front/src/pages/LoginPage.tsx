@@ -29,7 +29,7 @@ const LoginPage: React.FC = () => {
     try {
       const success = await login(username, password);
       if (success) {
-        navigate('/dashboard');
+        navigate('/');
       }
     } catch (err: any) {
       // Usar a mensagem específica do erro retornado pelo AuthContext

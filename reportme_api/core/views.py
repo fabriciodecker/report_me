@@ -101,15 +101,14 @@ class ProjectViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filtrar projetos baseado nas permissões do usuário"""
         user = self.request.user
+        print(f"DEBUG: Usuário {user.username} solicitando projetos")
+        print(f"DEBUG: is_staff: {user.is_staff}, is_admin: {getattr(user, 'is_admin', False)}")
         
-        if user.is_superuser or user.is_admin:
-            return Project.objects.all()
-        elif user.is_staff:
-            # Managers podem ver todos os projetos
-            return Project.objects.all()
-        else:
-            # Users podem ver apenas seus próprios projetos
-            return Project.objects.filter(owner=user)
+        # Para o portal de leitura, todos os usuários autenticados podem ver todos os projetos
+        # A segregação por usuário será implementada posteriormente se necessário
+        queryset = Project.objects.all()
+        print(f"DEBUG: Total de projetos: {queryset.count()}")
+        return queryset
     
     def get_serializer_class(self):
         """Escolher serializer baseado na action"""
@@ -168,14 +167,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
         )
     
     def retrieve(self, request, *args, **kwargs):
-        """Verificar permissão de visualização"""
-        instance = self.get_object()
-        if not request.user.can_view_project(instance):
-            self.permission_denied(
-                request,
-                message="Você não tem permissão para visualizar este projeto"
-            )
-        
+        """Permitir visualização para todos os usuários autenticados (portal de leitura)"""
+        # Removida verificação de permissão para permitir acesso de leitura a todos os projetos
         return super().retrieve(request, *args, **kwargs)
     
     @action(detail=True, methods=['get'])
@@ -183,11 +176,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
         """Endpoint para obter árvore completa do projeto"""
         project = self.get_object()
         
-        if not request.user.can_view_project(project):
-            return Response(
-                {"error": "Você não tem permissão para visualizar este projeto"},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        # Para o portal de leitura, todos os usuários autenticados podem ver a árvore
+        # A verificação de permissão foi removida para permitir acesso de leitura
         
         serializer = ProjectTreeSerializer(project, context={'request': request})
         return Response(serializer.data)
@@ -266,17 +256,11 @@ class ProjectNodeViewSet(viewsets.ModelViewSet):
     ordering = ['order', 'name']
     
     def get_queryset(self):
-        """Filtrar nós baseado nas permissões do usuário e projeto"""
-        user = self.request.user
+        """Filtrar nós baseado no projeto (todos os usuários autenticados podem ver todos os nós)"""
         queryset = ProjectNode.objects.all()
         
-        # Aplicar filtro por permissões
-        if not (user.is_superuser or user.is_admin):
-            if user.is_staff:
-                queryset = queryset
-            else:
-                # Users podem ver apenas nós de seus próprios projetos
-                queryset = queryset.filter(project__owner=user)
+        # Para o portal de leitura, todos os usuários autenticados podem ver todos os nós
+        # A segregação por usuário será implementada posteriormente se necessário
         
         # Aplicar filtro por projeto se especificado
         project_id = self.request.query_params.get('project')
@@ -371,14 +355,8 @@ class ProjectNodeViewSet(viewsets.ModelViewSet):
             )
     
     def retrieve(self, request, *args, **kwargs):
-        """Verificar permissão de visualização"""
-        instance = self.get_object()
-        if not request.user.can_view_project(instance.project):
-            self.permission_denied(
-                request,
-                message="Você não tem permissão para visualizar este projeto"
-            )
-        
+        """Permitir visualização para todos os usuários autenticados (portal de leitura)"""
+        # Removida verificação de permissão para permitir acesso de leitura a todos os nós
         return super().retrieve(request, *args, **kwargs)
     
     @action(detail=True, methods=['post'])
@@ -1120,14 +1098,9 @@ class QueryViewSet(viewsets.ModelViewSet):
         """Filtrar consultas baseado nas permissões do usuário"""
         user = self.request.user
         
-        if user.is_superuser or user.is_admin:
-            return Query.objects.all()
-        elif user.is_staff:
-            # Managers podem ver todas as consultas
-            return Query.objects.all()
-        else:
-            # Users podem ver apenas suas próprias consultas
-            return Query.objects.filter(created_by=user)
+        # Para o portal de leitura, todos os usuários autenticados podem ver todas as consultas
+        # A segregação por usuário será implementada posteriormente se necessário
+        return Query.objects.all()
     
     def get_serializer_class(self):
         """Escolher serializer baseado na action"""
@@ -1670,9 +1643,12 @@ class QueryViewSet(viewsets.ModelViewSet):
         start_time = time.time()
         
         try:
-            print('**6')
+            print(f'**DEBUG - Query original: {query.query}')
+            print(f'**DEBUG - Parâmetros recebidos: {parameters}')
+            
             # Substituir parâmetros na consulta
             sql_query = self._replace_query_parameters(query.query, parameters)
+            print(f'**DEBUG - Query após substituição: {sql_query}')
             
             # Adicionar LIMIT se especificado
             if limit and limit > 0:
@@ -1823,19 +1799,33 @@ class QueryViewSet(viewsets.ModelViewSet):
 
     def _replace_query_parameters(self, query_sql, parameters):
         """Substituir parâmetros na consulta SQL"""
+        import re
+        
         sql = query_sql
         
         # Substituir parâmetros no formato :param_name
         for param_name, param_value in parameters.items():
             placeholder = f":{param_name}"
-            if isinstance(param_value, str):
+            
+            # Se o valor está vazio ou None, substituir por NULL
+            if param_value is None or param_value == '':
+                replacement = "NULL"
+            elif isinstance(param_value, str):
                 # Escapar aspas simples em strings
-                param_value = param_value.replace("'", "''")
-                sql = sql.replace(placeholder, f"'{param_value}'")
-            elif param_value is None:
-                sql = sql.replace(placeholder, "NULL")
+                escaped_value = param_value.replace("'", "''")
+                replacement = f"'{escaped_value}'"
+            elif isinstance(param_value, bool):
+                replacement = "TRUE" if param_value else "FALSE"
             else:
-                sql = sql.replace(placeholder, str(param_value))
+                replacement = str(param_value)
+            
+            # Substituir todas as ocorrências do parâmetro
+            sql = sql.replace(placeholder, replacement)
+        
+        # Para lidar com parâmetros não fornecidos, substituir por NULL
+        remaining_params = re.findall(r':(\w+)', sql)
+        for param in remaining_params:
+            sql = sql.replace(f":{param}", "NULL")
         
         return sql
 

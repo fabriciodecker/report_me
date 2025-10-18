@@ -4,12 +4,17 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { AuthProvider } from './contexts/AuthContext';
 import LoginPage from './pages/LoginPage';
+import HomePage from './pages/HomePage';
 import DashboardPage from './pages/DashboardPage';
 import ProjectsPage from './pages/ProjectsPage';
 import ProjectNodesPage from './pages/ProjectNodesPage';
 import ConnectionsPage from './pages/ConnectionsPage';
 import QueriesPage from './pages/QueriesPage';
+import ReaderPortalPage from './pages/ReaderPortalPage';
+import ReaderProjectTreePage from './pages/ReaderProjectTreePage';
+import ReaderExecuteQueryPage from './pages/ReaderExecuteQueryPage';
 import ProtectedRoute from './components/ProtectedRoute';
+import RoleBasedRoute from './components/RoleBasedRoute';
 
 const theme = createTheme({
   palette: {
@@ -29,13 +34,15 @@ function App() {
       <AuthProvider>
         <Router>
           <Routes>
-            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route 
               path="/dashboard" 
               element={
                 <ProtectedRoute>
-                  <DashboardPage />
+                  <RoleBasedRoute adminOnly>
+                    <DashboardPage />
+                  </RoleBasedRoute>
                 </ProtectedRoute>
               } 
             />
@@ -43,7 +50,9 @@ function App() {
               path="/projects" 
               element={
                 <ProtectedRoute>
-                  <ProjectsPage />
+                  <RoleBasedRoute adminOnly>
+                    <ProjectsPage />
+                  </RoleBasedRoute>
                 </ProtectedRoute>
               } 
             />
@@ -51,7 +60,9 @@ function App() {
               path="/projects/:projectId/nodes" 
               element={
                 <ProtectedRoute>
-                  <ProjectNodesPage />
+                  <RoleBasedRoute adminOnly>
+                    <ProjectNodesPage />
+                  </RoleBasedRoute>
                 </ProtectedRoute>
               } 
             />
@@ -59,7 +70,9 @@ function App() {
               path="/connections" 
               element={
                 <ProtectedRoute>
-                  <ConnectionsPage />
+                  <RoleBasedRoute adminOnly>
+                    <ConnectionsPage />
+                  </RoleBasedRoute>
                 </ProtectedRoute>
               } 
             />
@@ -67,9 +80,35 @@ function App() {
               path="/queries" 
               element={
                 <ProtectedRoute>
-                  <QueriesPage />
+                  <RoleBasedRoute adminOnly>
+                    <QueriesPage />
+                  </RoleBasedRoute>
                 </ProtectedRoute>
               } 
+            />
+            <Route
+              path="/reader"
+              element={
+                <ProtectedRoute>
+                  <ReaderPortalPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reader/projects/:projectId"
+              element={
+                <ProtectedRoute>
+                  <ReaderProjectTreePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reader/execute-query/:queryId"
+              element={
+                <ProtectedRoute>
+                  <ReaderExecuteQueryPage />
+                </ProtectedRoute>
+              }
             />
             <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
