@@ -1,5 +1,10 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils import timezone
+from django.core.mail import send_mail
+from django.conf import settings
+import uuid
+import secrets
 # Importar modelos de auditoria
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -167,3 +172,42 @@ class UserSession(models.Model):
     
     def __str__(self):
         return f"{self.user.username} - {self.ip_address} - {self.created_at}"
+
+
+class PasswordResetToken(models.Model):
+    """
+    Modelo para tokens de recuperação de senha
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='password_reset_tokens')
+    token = models.CharField(max_length=255, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+    used_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        db_table = 'password_reset_token'
+        ordering = ['-created_at']
+        verbose_name = 'Token de Recuperação de Senha'
+        verbose_name_plural = 'Tokens de Recuperação de Senha'
+    
+    def save(self, *args, **kwargs):
+        if not self.token:
+            self.token = secrets.token_urlsafe(32)
+        if not self.expires_at:
+            # Token válido por 1 hora
+            self.expires_at = timezone.now() + timezone.timedelta(hours=1)
+        super().save(*args, **kwargs)
+    
+    def is_valid(self):
+        """Verificar se o token ainda é válido"""
+        return not self.is_used and timezone.now() < self.expires_at
+    
+    def mark_as_used(self):
+        """Marcar token como usado"""
+        self.is_used = True
+        self.used_at = timezone.now()
+        self.save()
+    
+    def __str__(self):
+        return f"Token para {self.user.email} - {'Válido' if self.is_valid() else 'Inválido'}"

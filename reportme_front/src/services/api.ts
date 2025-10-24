@@ -132,6 +132,19 @@ export const authService = {
   isAuthenticated: (): boolean => {
     return !!localStorage.getItem('access_token');
   },
+
+  requestPasswordReset: async (email: string): Promise<any> => {
+    const response = await api.post('/auth/password-reset-request/', { email });
+    return response.data;
+  },
+
+  resetPassword: async (token: string, new_password: string): Promise<any> => {
+    const response = await api.post('/auth/password-reset/', { 
+      token, 
+      new_password 
+    });
+    return response.data;
+  },
 };
 
 // Serviços do core

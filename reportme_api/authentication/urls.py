@@ -13,8 +13,8 @@ urlpatterns = [
     path('change-password/', views.ChangePasswordView.as_view(), name='change_password'),
     
     # Password reset endpoints
-    path('forgot-password/', views.ForgotPasswordView.as_view(), name='forgot_password'),
-    path('reset-password/', views.ResetPasswordView.as_view(), name='reset_password'),
+    path('password-reset-request/', views.PasswordResetRequestView.as_view(), name='password_reset_request'),
+    path('password-reset/', views.PasswordResetView.as_view(), name='password_reset'),
     
     # Admin endpoints
     path('users/', views.UserListView.as_view(), name='user_list'),

@@ -1,0 +1,1 @@
+# Este arquivo permite que o Django reconheça este diretório como um módulo Python

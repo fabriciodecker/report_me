@@ -1,0 +1,1 @@
+web: cd reportme_api && python manage.py migrate && gunicorn reportme.wsgi:application

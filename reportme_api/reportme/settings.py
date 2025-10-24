@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 from decouple import config
 from datetime import timedelta
@@ -206,3 +207,35 @@ CORS_ALLOW_CREDENTIALS = True
 
 # Custom User Model
 AUTH_USER_MODEL = 'authentication.User'
+
+# Frontend URL (para links de recuperação de senha)
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+
+# Email Configuration
+# Para desenvolvimento local, os emails serão exibidos no console
+EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+
+# Configurações SMTP (para produção)
+EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_USE_SSL = config('EMAIL_USE_SSL', default=False, cast=bool)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+
+# Email padrão do sistema
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='ReportMe <noreply@reportme.com>')
+SERVER_EMAIL = config('SERVER_EMAIL', default='sistema@reportme.com')
+
+# Timeout para conexões de email
+EMAIL_TIMEOUT = 30
+
+# Para desenvolvimento com Mailtrap ou similares
+if DEBUG and config('USE_MAILTRAP', default=False, cast=bool):
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = config('MAILTRAP_HOST', default='sandbox.smtp.mailtrap.io')
+    EMAIL_PORT = config('MAILTRAP_PORT', default=2525, cast=int)
+    EMAIL_HOST_USER = config('MAILTRAP_USER', default='')
+    EMAIL_HOST_PASSWORD = config('MAILTRAP_PASSWORD', default='')
+    EMAIL_USE_TLS = True
+    EMAIL_USE_SSL = False

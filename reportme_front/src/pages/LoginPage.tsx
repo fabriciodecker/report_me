@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Container,
   Paper,
@@ -101,7 +102,20 @@ const LoginPage: React.FC = () => {
               {isLoading ? <CircularProgress size={24} /> : 'Entrar'}
             </Button>
 
-            <Box sx={{ textAlign: 'center' }}>
+            <Box sx={{ textAlign: 'center', mt: 2 }}>
+              <Link 
+                to="/forgot-password" 
+                style={{ 
+                  textDecoration: 'none', 
+                  color: 'inherit',
+                  fontSize: '0.875rem'
+                }}
+              >
+                Esqueceu sua senha?
+              </Link>
+            </Box>
+
+            <Box sx={{ textAlign: 'center', mt: 1 }}>
               <Typography variant="body2" color="textSecondary">
                 Use suas credenciais do sistema
               </Typography>

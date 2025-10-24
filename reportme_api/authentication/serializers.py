@@ -122,9 +122,9 @@ class PasswordResetSerializer(serializers.Serializer):
     """
     token = serializers.CharField(required=True)
     new_password = serializers.CharField(required=True, min_length=8)
-    new_password_confirm = serializers.CharField(required=True)
     
-    def validate(self, attrs):
-        if attrs['new_password'] != attrs['new_password_confirm']:
-            raise serializers.ValidationError("As senhas não coincidem.")
-        return attrs
+    def validate_new_password(self, value):
+        """Validar força da senha"""
+        if len(value) < 8:
+            raise serializers.ValidationError("A senha deve ter pelo menos 8 caracteres.")
+        return value
