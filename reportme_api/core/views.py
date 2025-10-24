@@ -88,6 +88,71 @@ class HealthCheckView(APIView):
         description='Excluir um projeto e toda sua estrutura'
     ),
 )
+@extend_schema_view(
+    list=extend_schema(
+        tags=['projects'],
+        summary='Listar projetos',
+        description='Obter lista de todos os projetos disponíveis com informações resumidas',
+        examples=[
+            OpenApiExample(
+                'Resposta Lista de Projetos',
+                description='Exemplo de resposta com lista de projetos',
+                value={
+                    "count": 2,
+                    "next": None,
+                    "previous": None,
+                    "results": [
+                        {
+                            "id": 1,
+                            "name": "Projeto Financeiro",
+                            "description": "Relatórios financeiros corporativos",
+                            "is_public": True,
+                            "node_count": 5,
+                            "query_count": 12,
+                            "created_at": "2024-01-15T10:30:00Z"
+                        }
+                    ]
+                }
+            )
+        ]
+    ),
+    create=extend_schema(
+        tags=['projects'],
+        summary='Criar projeto',
+        description='Criar um novo projeto com estrutura hierárquica inicial',
+        examples=[
+            OpenApiExample(
+                'Criar Projeto',
+                description='Dados para criar um novo projeto',
+                value={
+                    "name": "Projeto de Vendas",
+                    "description": "Relatórios de vendas e marketing",
+                    "is_public": False
+                }
+            )
+        ]
+    ),
+    retrieve=extend_schema(
+        tags=['projects'],
+        summary='Obter projeto',
+        description='Obter detalhes completos de um projeto específico incluindo estrutura hierárquica'
+    ),
+    update=extend_schema(
+        tags=['projects'],
+        summary='Atualizar projeto',
+        description='Atualizar informações de um projeto existente'
+    ),
+    partial_update=extend_schema(
+        tags=['projects'],
+        summary='Atualizar projeto parcialmente',
+        description='Atualizar campos específicos de um projeto'
+    ),
+    destroy=extend_schema(
+        tags=['projects'],
+        summary='Excluir projeto',
+        description='Excluir um projeto e toda sua estrutura hierárquica (operação irreversível)'
+    )
+)
 class ProjectViewSet(viewsets.ModelViewSet):
     """
     ViewSet para CRUD de projetos
@@ -171,6 +236,43 @@ class ProjectViewSet(viewsets.ModelViewSet):
         # Removida verificação de permissão para permitir acesso de leitura a todos os projetos
         return super().retrieve(request, *args, **kwargs)
     
+    @extend_schema(
+        tags=['projects'],
+        summary='Obter árvore do projeto',
+        description='Obter estrutura hierárquica completa do projeto com todos os nós e relacionamentos',
+        responses={
+            200: OpenApiExample(
+                'Árvore do Projeto',
+                description='Estrutura hierárquica completa do projeto',
+                value={
+                    "id": 1,
+                    "name": "Projeto Financeiro",
+                    "description": "Relatórios financeiros corporativos",
+                    "tree": {
+                        "id": 1,
+                        "name": "Raiz",
+                        "children": [
+                            {
+                                "id": 2,
+                                "name": "Vendas",
+                                "children": [
+                                    {
+                                        "id": 3,
+                                        "name": "Vendas Mensais",
+                                        "has_query": True,
+                                        "query": {
+                                            "id": 1,
+                                            "name": "Relatório Vendas Mês"
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            )
+        }
+    )
     @action(detail=True, methods=['get'])
     def tree(self, request, pk=None):
         """Endpoint para obter árvore completa do projeto"""
@@ -471,6 +573,58 @@ class ProjectNodeViewSet(viewsets.ModelViewSet):
         return new_node
 
 
+@extend_schema(
+    tags=['connections'],
+    summary='Testar conexão',
+    description='Testar conectividade com banco de dados usando as credenciais fornecidas',
+    request=ConnectionTestSerializer,
+    responses={
+        200: OpenApiExample(
+            'Teste de Conexão Bem-sucedido',
+            description='Resultado de teste de conexão bem-sucedido',
+            value={
+                "success": True,
+                "message": "Conexão estabelecida com sucesso",
+                "sgbd": "postgresql",
+                "response_time_ms": 245.5,
+                "timestamp": "2024-01-15T14:30:00Z"
+            }
+        ),
+        400: OpenApiExample(
+            'Erro de Conexão',
+            description='Resultado quando há erro na conexão',
+            value={
+                "success": False,
+                "message": "Falha na conexão: Timeout",
+                "sgbd": "postgresql",
+                "error": "connection timeout",
+                "timestamp": "2024-01-15T14:30:00Z"
+            }
+        )
+    },
+    examples=[
+        OpenApiExample(
+            'Teste PostgreSQL',
+            description='Testar conexão PostgreSQL',
+            value={
+                "sgbd": "postgresql",
+                "host": "localhost",
+                "port": 5432,
+                "database": "test_db",
+                "user": "test_user",
+                "password": "test_password"
+            }
+        ),
+        OpenApiExample(
+            'Teste SQLite',
+            description='Testar conexão SQLite',
+            value={
+                "sgbd": "sqlite",
+                "database": "/path/to/test.db"
+            }
+        )
+    ]
+)
 class TestConnectionView(APIView):
     """
     Endpoint para testar conexão com banco de dados
@@ -488,6 +642,82 @@ class TestConnectionView(APIView):
         }, status=status.HTTP_200_OK)
 
 
+@extend_schema(
+    tags=['queries'],
+    summary='Executar consulta SQL',
+    description='Executar uma consulta SQL com parâmetros opcionais e obter resultados',
+    request={
+        'application/json': {
+            'type': 'object',
+            'properties': {
+                'query': {
+                    'type': 'string',
+                    'description': 'Consulta SQL a ser executada'
+                },
+                'parameters': {
+                    'type': 'object',
+                    'description': 'Parâmetros para a consulta (chave-valor)'
+                },
+                'connection_id': {
+                    'type': 'integer',
+                    'description': 'ID da conexão para executar a consulta'
+                }
+            },
+            'required': ['query', 'connection_id']
+        }
+    },
+    responses={
+        200: OpenApiExample(
+            'Execução Bem-sucedida',
+            description='Resultado de execução bem-sucedida',
+            value={
+                "success": True,
+                "data": [
+                    {"id": 1, "nome": "João", "vendas": 15000},
+                    {"id": 2, "nome": "Maria", "vendas": 18500}
+                ],
+                "columns": ["id", "nome", "vendas"],
+                "rows_count": 2,
+                "execution_time": 0.045,
+                "timestamp": "2024-01-15T14:30:00Z"
+            }
+        ),
+        400: OpenApiExample(
+            'Erro na Consulta',
+            description='Resultado quando há erro na consulta SQL',
+            value={
+                "success": False,
+                "error": "Syntax error in SQL query",
+                "query": "SELECT * FRON users",
+                "timestamp": "2024-01-15T14:30:00Z"
+            }
+        )
+    },
+    examples=[
+        OpenApiExample(
+            'Consulta Simples',
+            description='Executar consulta simples sem parâmetros',
+            value={
+                "query": "SELECT id, name, email FROM users LIMIT 10",
+                "connection_id": 1,
+                "parameters": {}
+            }
+        ),
+        OpenApiExample(
+            'Consulta com Parâmetros',
+            description='Executar consulta com parâmetros',
+            value={
+                "query": "SELECT * FROM sales WHERE date BETWEEN :start_date AND :end_date AND amount >= :min_amount",
+                "connection_id": 1,
+                "parameters": {
+                    "start_date": "2024-01-01",
+                    "end_date": "2024-01-31",
+                    "min_amount": 1000
+                }
+            }
+        )
+    ]
+)
 class ExecuteQueryView(APIView):
     """
     Endpoint para executar consultas SQL

@@ -1,0 +1,2876 @@
+openapi: 3.0.3
+info:
+  title: ReportMe API
+  version: 1.0.0
+  description: Portal de relatórios corporativo - API REST
+paths:
+  /auth/login/:
+    post:
+      operationId: auth_login_create
+      description: Autenticar usuário e obter tokens JWT (access e refresh)
+      summary: Login do usuário
+      tags:
+      - authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPairRequest'
+            examples:
+              LoginExemplo:
+                value:
+                  username: admin
+                  password: Teste@123
+                summary: Login Exemplo
+                description: Exemplo de login com credenciais
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPairRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPairRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /auth/refresh/:
+    post:
+      operationId: auth_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /auth/register/:
+    post:
+      operationId: auth_register_create
+      description: Criar uma nova conta de usuário no sistema
+      summary: Registro de novo usuário
+      tags:
+      - authentication
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /auth/profile/:
+    get:
+      operationId: auth_profile_retrieve
+      description: Endpoint para visualizar/atualizar perfil do usuário
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    put:
+      operationId: auth_profile_update
+      description: Endpoint para visualizar/atualizar perfil do usuário
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /auth/change-password/:
+    post:
+      operationId: auth_change_password_create
+      description: Endpoint para mudança de senha
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /auth/password-reset-request/:
+    post:
+      operationId: auth_password_reset_request_create
+      description: Enviar email com token para recuperação de senha
+      summary: Solicitar recuperação de senha
+      tags:
+      - authentication
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /auth/password-reset/:
+    post:
+      operationId: auth_password_reset_create
+      description: Redefinir senha usando token de recuperação
+      summary: Redefinir senha
+      tags:
+      - authentication
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /auth/users/:
+    get:
+      operationId: auth_users_retrieve
+      description: Endpoint para listar usuários (apenas para admins)
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /auth/permissions/:
+    get:
+      operationId: auth_permissions_retrieve
+      description: Endpoint para verificar permissões do usuário atual
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /auth/test-permission/:
+    post:
+      operationId: auth_test_permission_create
+      description: |-
+        Testar uma permissão específica
+        Formato: {"permission": "can_create", "resource": "connection"}
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /core/projects/:
+    get:
+      operationId: core_projects_list
+      description: Listar todos os projetos do usuário com paginação e filtros
+      summary: Listar projetos
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Qual campo usar ao ordenar os resultados.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: Um termo de busca.
+        schema:
+          type: string
+      tags:
+      - projects
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedProjectListList'
+          description: ''
+    post:
+      operationId: core_projects_create
+      description: Criar um novo projeto
+      summary: Criar projeto
+      tags:
+      - projects
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectRequest'
+            examples:
+              ProjetoExemplo:
+                value:
+                  name: Meu Projeto de Relatórios
+                  description: Projeto para relatórios financeiros
+                summary: Projeto Exemplo
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProjectRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProjectRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+              examples:
+                ProjetoExemplo:
+                  value:
+                    name: Meu Projeto de Relatórios
+                    description: Projeto para relatórios financeiros
+                  summary: Projeto Exemplo
+          description: ''
+  /core/projects/{id}/:
+    get:
+      operationId: core_projects_retrieve
+      description: Obter detalhes de um projeto específico
+      summary: Obter projeto
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Um valor inteiro único que identifica este Projeto.
+        required: true
+      tags:
+      - projects
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: ''
+    put:
+      operationId: core_projects_update
+      description: Atualizar informações de um projeto
+      summary: Atualizar projeto
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Um valor inteiro único que identifica este Projeto.
+        required: true
+      tags:
+      - projects
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProjectRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProjectRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: ''
+    delete:
+      operationId: core_projects_destroy
+      description: Excluir um projeto e toda sua estrutura
+      summary: Excluir projeto
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Um valor inteiro único que identifica este Projeto.
+        required: true
+      tags:
+      - projects
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+    patch:
+      operationId: core_projects_partial_update
+      description: Atualizar campos específicos de um projeto
+      summary: Atualizar projeto parcialmente
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Um valor inteiro único que identifica este Projeto.
+        required: true
+      tags:
+      - projects
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedProjectRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedProjectRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedProjectRequest'
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: ''
+  /core/projects/{id}/duplicate/:
+    post:
+      operationId: core_projects_duplicate_create
+      description: Duplicar projeto
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Um valor inteiro único que identifica este Projeto.
+        required: true
+      tags:
+      - core
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProjectRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProjectRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: ''
+  /core/projects/{id}/tree/:
+    get:
+      operationId: core_projects_tree_retrieve
+      description: Endpoint para obter árvore completa do projeto
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Um valor inteiro único que identifica este Projeto.
+        required: true
+      tags:
+      - core
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectTree'
+          description: ''
+  /core/project-nodes/:
+    get:
+      operationId: core_project_nodes_list
+      description: ViewSet para CRUD de nós de projeto
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Qual campo usar ao ordenar os resultados.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      - in: query
+        name: parent
+        schema:
+          type: integer
+      - in: query
+        name: project
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: Um termo de busca.
+        schema:
+          type: string
+      tags:
+      - core
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedProjectNodeList'
+          description: ''
+    post:
+      operationId: core_project_nodes_create
+      description: ViewSet para CRUD de nós de projeto
+      tags:
+      - core
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectNodeCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProjectNodeCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProjectNodeCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectNodeCreate'
+          description: ''
+  /core/project-nodes/{id}/:
+    get:
+      operationId: core_project_nodes_retrieve
+      description: Permitir visualização para todos os usuários autenticados (portal
+        de leitura)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Um valor inteiro único que identifica este Nó do Projeto.
+        required: true
+      tags:
+      - core
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectNode'
+          description: ''
+    put:
+      operationId: core_project_nodes_update
+      description: ViewSet para CRUD de nós de projeto
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Um valor inteiro único que identifica este Nó do Projeto.
+        required: true
+      tags:
+      - core
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectNodeCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProjectNodeCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProjectNodeCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectNodeCreate'
+          description: ''
+    delete:
+      operationId: core_project_nodes_destroy
+      description: ViewSet para CRUD de nós de projeto
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Um valor inteiro único que identifica este Nó do Projeto.
+        required: true
+      tags:
+      - core
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+    patch:
+      operationId: core_project_nodes_partial_update
+      description: ViewSet para CRUD de nós de projeto
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Um valor inteiro único que identifica este Nó do Projeto.
+        required: true
+      tags:
+      - core
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedProjectNodeCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedProjectNodeCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedProjectNodeCreateRequest'
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectNodeCreate'
+          description: ''
+  /core/project-nodes/{id}/duplicate/:
+    post:
+      operationId: core_project_nodes_duplicate_create
+      description: Duplicar nó e sua subárvore
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Um valor inteiro único que identifica este Nó do Projeto.
+        required: true
+      tags:
+      - core
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectNodeRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProjectNodeRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProjectNodeRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectNode'
+          description: ''
+  /core/project-nodes/{id}/move/:
+    post:
+      operationId: core_project_nodes_move_create
+      description: Mover nó para outro local na árvore
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Um valor inteiro único que identifica este Nó do Projeto.
+        required: true
+      tags:
+      - core
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectNodeRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProjectNodeRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProjectNodeRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectNode'
+          description: ''
+  /core/connections/:
+    get:
+      operationId: core_connections_list
+      description: Listar todas as conexões de banco de dados do usuário
+      summary: Listar conexões
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Qual campo usar ao ordenar os resultados.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: Um termo de busca.
+        schema:
+          type: string
+      tags:
+      - connections
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedConnectionListList'
+          description: ''
+    post:
+      operationId: core_connections_create
+      description: Criar uma nova conexão com banco de dados
+      summary: Criar conexão
+      tags:
+      - connections
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionRequest'
+            examples:
+              ConexãoPostgreSQL:
+                value:
+                  name: BD Produção
+                  sgbd: postgresql
+                  host: localhost
+                  port: 5432
+                  database: reportme_prod
+                  user: user_db
+                  password: senha123
+                summary: Conexão PostgreSQL
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ConnectionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ConnectionRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+              examples:
+                ConexãoPostgreSQL:
+                  value:
+                    name: BD Produção
+                    sgbd: postgresql
+                    host: localhost
+                    port: 5432
+                    database: reportme_prod
+                    user: user_db
+                    password: senha123
+                  summary: Conexão PostgreSQL
+          description: ''
+  /core/connections/test-connection/:
+    post:
+      operationId: core_connections_test_connection_create
+      description: Testar conectividade com banco de dados (conexão existente ou temporária)
+      summary: Testar conexão
+      tags:
+      - connections
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionTestRequest'
+            examples:
+              TesteConexãoExistente:
+                value:
+                  connection_id: 1
+                summary: Teste conexão existente
+                description: Testar uma conexão já cadastrada
+              TesteConexãoTemporária:
+                value:
+                  database_type: postgresql
+                  host: localhost
+                  port: 5432
+                  database_name: test_db
+                  username: user
+                  password: password
+                summary: Teste conexão temporária
+                description: Testar uma nova conexão sem salvar
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ConnectionTestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ConnectionTestRequest'
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionTest'
+              examples:
+                TesteConexãoExistente:
+                  value:
+                    connection_id: 1
+                  summary: Teste conexão existente
+                  description: Testar uma conexão já cadastrada
+                TesteConexãoTemporária:
+                  value:
+                    database_type: postgresql
+                    host: localhost
+                    port: 5432
+                    database_name: test_db
+                    username: user
+                    password: password
+                  summary: Teste conexão temporária
+                  description: Testar uma nova conexão sem salvar
+          description: ''
+  /core/connections/{id}/:
+    get:
+      operationId: core_connections_retrieve
+      description: Obter detalhes de uma conexão específica
+      summary: Obter conexão
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - connections
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+          description: ''
+    put:
+      operationId: core_connections_update
+      description: Atualizar informações de uma conexão
+      summary: Atualizar conexão
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - connections
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ConnectionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ConnectionRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+          description: ''
+    delete:
+      operationId: core_connections_destroy
+      description: Excluir uma conexão de banco de dados
+      summary: Excluir conexão
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - connections
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+    patch:
+      operationId: core_connections_partial_update
+      description: ViewSet para CRUD de conexões de banco de dados
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - core
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedConnectionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedConnectionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedConnectionRequest'
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+          description: ''
+  /core/connections/{id}/duplicate/:
+    post:
+      operationId: core_connections_duplicate_create
+      description: Duplicar conexão
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - core
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ConnectionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ConnectionRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+          description: ''
+  /core/connections/{id}/test/:
+    post:
+      operationId: core_connections_test_create
+      description: Testar conectividade de uma conexão específica por ID
+      summary: Testar conexão específica
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - connections
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ConnectionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ConnectionRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+          description: ''
+  /core/queries/:
+    get:
+      operationId: core_queries_list
+      description: Listar todas as consultas SQL do usuário com filtros e paginação
+      summary: Listar consultas
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Qual campo usar ao ordenar os resultados.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: Um termo de busca.
+        schema:
+          type: string
+      tags:
+      - queries
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedQueryListList'
+          description: ''
+    post:
+      operationId: core_queries_create
+      description: Criar uma nova consulta SQL
+      summary: Criar consulta
+      tags:
+      - queries
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryCreateRequest'
+            examples:
+              ConsultaSimples:
+                value:
+                  name: Lista de Usuários
+                  query: SELECT id, name, email FROM users WHERE active = 1
+                  connection: 1
+                  timeout: 30
+                  cache_duration: 300
+                summary: Consulta Simples
+              ConsultaComParâmetros:
+                value:
+                  name: Usuários por Departamento
+                  query: SELECT * FROM users WHERE department = {{dept}} AND created_at
+                    >= {{start_date}}
+                  connection: 1
+                  parameters:
+                  - name: dept
+                    type: text
+                    description: Departamento
+                    is_required: true
+                  - name: start_date
+                    type: date
+                    description: Data inicial
+                    is_required: false
+                    default_value: '2024-01-01'
+                summary: Consulta com Parâmetros
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/QueryCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/QueryCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryCreate'
+              examples:
+                ConsultaSimples:
+                  value:
+                    name: Lista de Usuários
+                    query: SELECT id, name, email FROM users WHERE active = 1
+                    connection: 1
+                    timeout: 30
+                    cache_duration: 300
+                  summary: Consulta Simples
+                ConsultaComParâmetros:
+                  value:
+                    name: Usuários por Departamento
+                    query: SELECT * FROM users WHERE department = {{dept}} AND created_at
+                      >= {{start_date}}
+                    connection: 1
+                    parameters:
+                    - name: dept
+                      type: text
+                      description: Departamento
+                      is_required: true
+                    - name: start_date
+                      type: date
+                      description: Data inicial
+                      is_required: false
+                      default_value: '2024-01-01'
+                  summary: Consulta com Parâmetros
+          description: ''
+  /core/queries/execute/:
+    post:
+      operationId: core_queries_execute_create
+      description: Executar consulta SQL
+      tags:
+      - core
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryExecutionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/QueryExecutionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/QueryExecutionRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryExecution'
+          description: ''
+  /core/queries/execute-paginated/:
+    post:
+      operationId: core_queries_execute_paginated_create
+      description: Executar consulta SQL com paginação
+      tags:
+      - core
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Query'
+          description: ''
+  /core/queries/export/:
+    post:
+      operationId: core_queries_export_create
+      description: Exportar resultados de consulta para Excel/CSV
+      tags:
+      - core
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Query'
+          description: ''
+  /core/queries/test-execute/:
+    post:
+      operationId: core_queries_test_execute_create
+      description: Teste simples de execução de query sem validações complexas
+      tags:
+      - core
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Query'
+          description: ''
+  /core/queries/validate/:
+    post:
+      operationId: core_queries_validate_create
+      description: Validar consulta SQL
+      tags:
+      - core
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Query'
+          description: ''
+  /core/queries/{id}/:
+    get:
+      operationId: core_queries_retrieve
+      description: Obter detalhes de uma consulta específica
+      summary: Obter consulta
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Um valor inteiro único que identifica este Consulta.
+        required: true
+      tags:
+      - queries
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Query'
+          description: ''
+    put:
+      operationId: core_queries_update
+      description: Atualizar informações de uma consulta
+      summary: Atualizar consulta
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Um valor inteiro único que identifica este Consulta.
+        required: true
+      tags:
+      - queries
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/QueryCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/QueryCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryCreate'
+          description: ''
+    delete:
+      operationId: core_queries_destroy
+      description: Excluir uma consulta SQL
+      summary: Excluir consulta
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Um valor inteiro único que identifica este Consulta.
+        required: true
+      tags:
+      - queries
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+    patch:
+      operationId: core_queries_partial_update
+      description: Interceptar requests de partial_update para debugging
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Um valor inteiro único que identifica este Consulta.
+        required: true
+      tags:
+      - core
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedQueryCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedQueryCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedQueryCreateRequest'
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryCreate'
+          description: ''
+  /core/queries/{id}/duplicate/:
+    post:
+      operationId: core_queries_duplicate_create
+      description: Duplicar consulta
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Um valor inteiro único que identifica este Consulta.
+        required: true
+      tags:
+      - core
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Query'
+          description: ''
+  /core/queries/{id}/execution-history/:
+    get:
+      operationId: core_queries_execution_history_retrieve
+      description: Obter histórico de execuções de uma consulta
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: Um valor inteiro único que identifica este Consulta.
+        required: true
+      tags:
+      - core
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Query'
+          description: ''
+  /core/parameters/:
+    get:
+      operationId: core_parameters_list
+      description: Listar parâmetros de uma query específica
+      summary: Listar parâmetros
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Qual campo usar ao ordenar os resultados.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: Um termo de busca.
+        schema:
+          type: string
+      tags:
+      - parameters
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedParameterList'
+          description: ''
+    post:
+      operationId: core_parameters_create
+      description: Criar novo parâmetro para uma query
+      summary: Criar parâmetro
+      tags:
+      - parameters
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParameterRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ParameterRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ParameterRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Parameter'
+          description: ''
+  /core/parameters/extract-from-sql/:
+    post:
+      operationId: core_parameters_extract_from_sql_create
+      description: Extrair parâmetros de uma query SQL
+      tags:
+      - core
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParameterRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ParameterRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ParameterRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Parameter'
+          description: ''
+  /core/parameters/{id}/:
+    get:
+      operationId: core_parameters_retrieve
+      description: Obter detalhes de um parâmetro específico
+      summary: Obter parâmetro
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - parameters
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Parameter'
+          description: ''
+    put:
+      operationId: core_parameters_update
+      description: Atualizar informações de um parâmetro
+      summary: Atualizar parâmetro
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - parameters
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParameterRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ParameterRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ParameterRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Parameter'
+          description: ''
+    delete:
+      operationId: core_parameters_destroy
+      description: Excluir um parâmetro
+      summary: Excluir parâmetro
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - parameters
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+    patch:
+      operationId: core_parameters_partial_update
+      description: ViewSet para CRUD de parâmetros de consultas
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - core
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedParameterRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedParameterRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedParameterRequest'
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Parameter'
+          description: ''
+  /core/test-connection/:
+    post:
+      operationId: core_test_connection_create
+      description: Endpoint para testar conexão com banco de dados
+      tags:
+      - core
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /core/execute-query/:
+    post:
+      operationId: core_execute_query_create
+      description: Endpoint para executar consultas SQL
+      tags:
+      - core
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /core/health/:
+    get:
+      operationId: core_health_retrieve
+      description: Verificar se a API está funcionando corretamente
+      summary: Health Check
+      tags:
+      - system
+      security:
+      - jwtAuth: []
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+components:
+  schemas:
+    Connection:
+      type: object
+      description: Serializer para conexões de banco de dados
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          title: Nome da Conexão
+          maxLength: 255
+        sgbd:
+          $ref: '#/components/schemas/SgbdEnum'
+        sgbd_display:
+          type: string
+          readOnly: true
+        host:
+          type: string
+          maxLength: 255
+        port:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+          title: Porta
+        database:
+          type: string
+          title: Nome do Banco
+          maxLength: 255
+        user:
+          type: string
+          title: Usuário
+          maxLength: 255
+        extra_config:
+          title: Configurações Extras
+        created_by:
+          type: integer
+          readOnly: true
+        owner_name:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+        is_testable:
+          type: string
+          readOnly: true
+        last_test_status:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - created_by
+      - database
+      - id
+      - is_testable
+      - last_test_status
+      - name
+      - owner_name
+      - sgbd_display
+      - updated_at
+    ConnectionList:
+      type: object
+      description: Serializer simplificado para listagem de conexões
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          title: Nome da Conexão
+          maxLength: 255
+        sgbd:
+          $ref: '#/components/schemas/SgbdEnum'
+        sgbd_display:
+          type: string
+          readOnly: true
+        host:
+          type: string
+          maxLength: 255
+        port:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+          title: Porta
+        database:
+          type: string
+          title: Nome do Banco
+          maxLength: 255
+        user:
+          type: string
+          title: Usuário
+          maxLength: 255
+        owner_name:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+        connection_string:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - connection_string
+      - created_at
+      - database
+      - id
+      - name
+      - owner_name
+      - sgbd_display
+    ConnectionRequest:
+      type: object
+      description: Serializer para conexões de banco de dados
+      properties:
+        name:
+          type: string
+          minLength: 1
+          title: Nome da Conexão
+          maxLength: 255
+        sgbd:
+          $ref: '#/components/schemas/SgbdEnum'
+        host:
+          type: string
+          maxLength: 255
+        port:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+          title: Porta
+        database:
+          type: string
+          minLength: 1
+          title: Nome do Banco
+          maxLength: 255
+        user:
+          type: string
+          title: Usuário
+          maxLength: 255
+        password:
+          type: string
+          writeOnly: true
+          title: Senha
+          maxLength: 255
+        extra_config:
+          title: Configurações Extras
+        is_active:
+          type: boolean
+      required:
+      - database
+      - name
+    ConnectionTest:
+      type: object
+      description: Serializer para testar conexão
+      properties:
+        connection_id:
+          type: integer
+        sgbd:
+          $ref: '#/components/schemas/SgbdEnum'
+        host:
+          type: string
+          maxLength: 255
+        port:
+          type: integer
+        database:
+          type: string
+          maxLength: 255
+        user:
+          type: string
+          maxLength: 255
+        password:
+          type: string
+          maxLength: 255
+        extra_config: {}
+    ConnectionTestRequest:
+      type: object
+      description: Serializer para testar conexão
+      properties:
+        connection_id:
+          type: integer
+        sgbd:
+          $ref: '#/components/schemas/SgbdEnum'
+        host:
+          type: string
+          minLength: 1
+          maxLength: 255
+        port:
+          type: integer
+        database:
+          type: string
+          minLength: 1
+          maxLength: 255
+        user:
+          type: string
+          minLength: 1
+          maxLength: 255
+        password:
+          type: string
+          minLength: 1
+          maxLength: 255
+        extra_config: {}
+    CustomTokenObtainPairRequest:
+      type: object
+      description: Serializer customizado para login JWT que retorna informações extras
+        do usuário
+      properties:
+        username:
+          type: string
+          writeOnly: true
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - password
+      - username
+    PaginatedConnectionListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConnectionList'
+    PaginatedParameterList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Parameter'
+    PaginatedProjectListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectList'
+    PaginatedProjectNodeList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectNode'
+    PaginatedQueryListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/QueryList'
+    Parameter:
+      type: object
+      description: Serializer para parâmetros de consulta
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          title: Nome do Parâmetro
+          maxLength: 255
+        type:
+          allOf:
+          - $ref: '#/components/schemas/TypeEnum'
+          title: Tipo
+        allow_null:
+          type: boolean
+          title: Permite Vazio
+        default_value:
+          type: string
+          title: Valor Padrão
+          maxLength: 255
+        allow_multiple_values:
+          type: boolean
+          title: Permite Múltiplos Valores
+        min_value:
+          type: number
+          format: double
+          nullable: true
+          title: Valor Mínimo
+        max_value:
+          type: number
+          format: double
+          nullable: true
+          title: Valor Máximo
+        regex_pattern:
+          type: string
+          title: Padrão Regex
+          maxLength: 500
+        options:
+          title: Opções (para tipo lista)
+        query:
+          type: integer
+          title: Consulta
+      required:
+      - id
+      - name
+      - query
+    ParameterRequest:
+      type: object
+      description: Serializer para parâmetros de consulta
+      properties:
+        name:
+          type: string
+          minLength: 1
+          title: Nome do Parâmetro
+          maxLength: 255
+        type:
+          allOf:
+          - $ref: '#/components/schemas/TypeEnum'
+          title: Tipo
+        allow_null:
+          type: boolean
+          title: Permite Vazio
+        default_value:
+          type: string
+          title: Valor Padrão
+          maxLength: 255
+        allow_multiple_values:
+          type: boolean
+          title: Permite Múltiplos Valores
+        min_value:
+          type: number
+          format: double
+          nullable: true
+          title: Valor Mínimo
+        max_value:
+          type: number
+          format: double
+          nullable: true
+          title: Valor Máximo
+        regex_pattern:
+          type: string
+          title: Padrão Regex
+          maxLength: 500
+        options:
+          title: Opções (para tipo lista)
+        query:
+          type: integer
+          title: Consulta
+      required:
+      - name
+      - query
+    PatchedConnectionRequest:
+      type: object
+      description: Serializer para conexões de banco de dados
+      properties:
+        name:
+          type: string
+          minLength: 1
+          title: Nome da Conexão
+          maxLength: 255
+        sgbd:
+          $ref: '#/components/schemas/SgbdEnum'
+        host:
+          type: string
+          maxLength: 255
+        port:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          nullable: true
+          title: Porta
+        database:
+          type: string
+          minLength: 1
+          title: Nome do Banco
+          maxLength: 255
+        user:
+          type: string
+          title: Usuário
+          maxLength: 255
+        password:
+          type: string
+          writeOnly: true
+          title: Senha
+          maxLength: 255
+        extra_config:
+          title: Configurações Extras
+        is_active:
+          type: boolean
+    PatchedParameterRequest:
+      type: object
+      description: Serializer para parâmetros de consulta
+      properties:
+        name:
+          type: string
+          minLength: 1
+          title: Nome do Parâmetro
+          maxLength: 255
+        type:
+          allOf:
+          - $ref: '#/components/schemas/TypeEnum'
+          title: Tipo
+        allow_null:
+          type: boolean
+          title: Permite Vazio
+        default_value:
+          type: string
+          title: Valor Padrão
+          maxLength: 255
+        allow_multiple_values:
+          type: boolean
+          title: Permite Múltiplos Valores
+        min_value:
+          type: number
+          format: double
+          nullable: true
+          title: Valor Mínimo
+        max_value:
+          type: number
+          format: double
+          nullable: true
+          title: Valor Máximo
+        regex_pattern:
+          type: string
+          title: Padrão Regex
+          maxLength: 500
+        options:
+          title: Opções (para tipo lista)
+        query:
+          type: integer
+          title: Consulta
+    PatchedProjectNodeCreateRequest:
+      type: object
+      description: Serializer simplificado para criação de nós (sem recursão)
+      properties:
+        name:
+          type: string
+          minLength: 1
+          title: Nome do Nó
+          maxLength: 255
+        parent:
+          type: integer
+          nullable: true
+        parent_id:
+          type: integer
+          writeOnly: true
+          nullable: true
+        query:
+          type: integer
+          nullable: true
+          title: Consulta
+        query_id:
+          type: integer
+          writeOnly: true
+          nullable: true
+        connection:
+          type: integer
+          nullable: true
+          title: Conexão
+    PatchedProjectRequest:
+      type: object
+      description: Serializer para projetos
+      properties:
+        name:
+          type: string
+          minLength: 1
+          title: Nome do Projeto
+          maxLength: 255
+        description:
+          type: string
+          title: Descrição
+        is_active:
+          type: boolean
+    PatchedQueryCreateRequest:
+      type: object
+      description: Serializer para criação de consulta
+      properties:
+        name:
+          type: string
+          minLength: 1
+          title: Nome da Consulta
+          maxLength: 255
+        query:
+          type: string
+          minLength: 1
+          title: Consulta SQL
+        connection:
+          type: integer
+          title: Conexão
+        connection_id:
+          type: integer
+          writeOnly: true
+        timeout:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          title: Timeout (segundos)
+        cache_duration:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          title: Cache (segundos, 0 = sem cache)
+        is_active:
+          type: boolean
+    Project:
+      type: object
+      description: Serializer para projetos
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          title: Nome do Projeto
+          maxLength: 255
+        description:
+          type: string
+          title: Descrição
+        first_node:
+          type: integer
+          readOnly: true
+          nullable: true
+        first_node_id:
+          type: integer
+          readOnly: true
+          nullable: true
+        root_node:
+          allOf:
+          - $ref: '#/components/schemas/ProjectNode'
+          readOnly: true
+        node_count:
+          type: string
+          readOnly: true
+        query_count:
+          type: string
+          readOnly: true
+        owner:
+          type: integer
+          readOnly: true
+        created_by_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        is_active:
+          type: boolean
+      required:
+      - created_at
+      - created_by_name
+      - first_node
+      - first_node_id
+      - id
+      - name
+      - node_count
+      - owner
+      - query_count
+      - root_node
+      - updated_at
+    ProjectList:
+      type: object
+      description: Serializer simplificado para listagem de projetos
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          title: Nome do Projeto
+          maxLength: 255
+        description:
+          type: string
+          title: Descrição
+        node_count:
+          type: string
+          readOnly: true
+        query_count:
+          type: string
+          readOnly: true
+        created_by_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        is_active:
+          type: boolean
+      required:
+      - created_at
+      - created_by_name
+      - id
+      - name
+      - node_count
+      - query_count
+    ProjectNode:
+      type: object
+      description: Serializer para nós de projeto (estrutura hierárquica)
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          title: Nome do Nó
+          maxLength: 255
+        parent:
+          type: integer
+          nullable: true
+        parent_id:
+          type: integer
+          readOnly: true
+          nullable: true
+        query:
+          type: integer
+          nullable: true
+          title: Consulta
+        query_id:
+          type: integer
+          readOnly: true
+          nullable: true
+        connection:
+          type: integer
+          nullable: true
+          title: Conexão
+        children:
+          type: string
+          readOnly: true
+        query_name:
+          type: string
+          readOnly: true
+        connection_name:
+          type: string
+          readOnly: true
+        has_query:
+          type: string
+          readOnly: true
+        node_type:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - children
+      - connection_name
+      - created_at
+      - has_query
+      - id
+      - name
+      - node_type
+      - parent_id
+      - query_id
+      - query_name
+      - updated_at
+    ProjectNodeCreate:
+      type: object
+      description: Serializer simplificado para criação de nós (sem recursão)
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          title: Nome do Nó
+          maxLength: 255
+        parent:
+          type: integer
+          nullable: true
+        query:
+          type: integer
+          nullable: true
+          title: Consulta
+        connection:
+          type: integer
+          nullable: true
+          title: Conexão
+      required:
+      - id
+      - name
+    ProjectNodeCreateRequest:
+      type: object
+      description: Serializer simplificado para criação de nós (sem recursão)
+      properties:
+        name:
+          type: string
+          minLength: 1
+          title: Nome do Nó
+          maxLength: 255
+        parent:
+          type: integer
+          nullable: true
+        parent_id:
+          type: integer
+          writeOnly: true
+          nullable: true
+        query:
+          type: integer
+          nullable: true
+          title: Consulta
+        query_id:
+          type: integer
+          writeOnly: true
+          nullable: true
+        connection:
+          type: integer
+          nullable: true
+          title: Conexão
+      required:
+      - name
+    ProjectNodeRequest:
+      type: object
+      description: Serializer para nós de projeto (estrutura hierárquica)
+      properties:
+        name:
+          type: string
+          minLength: 1
+          title: Nome do Nó
+          maxLength: 255
+        parent:
+          type: integer
+          nullable: true
+        query:
+          type: integer
+          nullable: true
+          title: Consulta
+        connection:
+          type: integer
+          nullable: true
+          title: Conexão
+      required:
+      - name
+    ProjectRequest:
+      type: object
+      description: Serializer para projetos
+      properties:
+        name:
+          type: string
+          minLength: 1
+          title: Nome do Projeto
+          maxLength: 255
+        description:
+          type: string
+          title: Descrição
+        is_active:
+          type: boolean
+      required:
+      - name
+    ProjectTree:
+      type: object
+      description: Serializer para árvore completa do projeto
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          title: Nome do Projeto
+          maxLength: 255
+        description:
+          type: string
+          title: Descrição
+        tree:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - name
+      - tree
+      - updated_at
+    Query:
+      type: object
+      description: Serializer para consultas
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          title: Nome da Consulta
+          maxLength: 255
+        query:
+          type: string
+          title: Consulta SQL
+        connection:
+          type: integer
+          title: Conexão
+        connection_name:
+          type: string
+          readOnly: true
+        created_by:
+          type: integer
+          readOnly: true
+        created_by_name:
+          type: string
+          readOnly: true
+        parameters:
+          type: array
+          items:
+            $ref: '#/components/schemas/Parameter'
+          readOnly: true
+        timeout:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          title: Timeout (segundos)
+        cache_duration:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          title: Cache (segundos, 0 = sem cache)
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - connection
+      - connection_name
+      - created_at
+      - created_by
+      - created_by_name
+      - id
+      - name
+      - parameters
+      - query
+      - updated_at
+    QueryCreate:
+      type: object
+      description: Serializer para criação de consulta
+      properties:
+        name:
+          type: string
+          title: Nome da Consulta
+          maxLength: 255
+        query:
+          type: string
+          title: Consulta SQL
+        connection:
+          type: integer
+          title: Conexão
+        timeout:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          title: Timeout (segundos)
+        cache_duration:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          title: Cache (segundos, 0 = sem cache)
+        is_active:
+          type: boolean
+      required:
+      - name
+      - query
+    QueryCreateRequest:
+      type: object
+      description: Serializer para criação de consulta
+      properties:
+        name:
+          type: string
+          minLength: 1
+          title: Nome da Consulta
+          maxLength: 255
+        query:
+          type: string
+          minLength: 1
+          title: Consulta SQL
+        connection:
+          type: integer
+          title: Conexão
+        connection_id:
+          type: integer
+          writeOnly: true
+        timeout:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          title: Timeout (segundos)
+        cache_duration:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          title: Cache (segundos, 0 = sem cache)
+        is_active:
+          type: boolean
+      required:
+      - name
+      - query
+    QueryExecution:
+      type: object
+      description: Serializer para execução de consulta
+      properties:
+        query_id:
+          type: integer
+        parameters:
+          type: object
+          additionalProperties: {}
+        limit:
+          type: integer
+          maximum: 10000
+          minimum: 1
+          default: 100
+      required:
+      - query_id
+    QueryExecutionRequest:
+      type: object
+      description: Serializer para execução de consulta
+      properties:
+        query_id:
+          type: integer
+        parameters:
+          type: object
+          additionalProperties: {}
+        limit:
+          type: integer
+          maximum: 10000
+          minimum: 1
+          default: 100
+      required:
+      - query_id
+    QueryList:
+      type: object
+      description: Serializer para listagem de consultas
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          title: Nome da Consulta
+          maxLength: 255
+        query:
+          type: string
+          title: Consulta SQL
+        connection:
+          type: integer
+          title: Conexão
+        connection_id:
+          type: integer
+          title: Conexão
+          readOnly: true
+        connection_name:
+          type: string
+          readOnly: true
+        created_by_name:
+          type: string
+          readOnly: true
+        parameters_count:
+          type: string
+          readOnly: true
+        last_execution:
+          type: string
+          readOnly: true
+        timeout:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          title: Timeout (segundos)
+        cache_duration:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          title: Cache (segundos, 0 = sem cache)
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        is_active:
+          type: boolean
+      required:
+      - connection
+      - connection_id
+      - connection_name
+      - created_at
+      - created_by_name
+      - id
+      - last_execution
+      - name
+      - parameters_count
+      - query
+      - updated_at
+    QueryRequest:
+      type: object
+      description: Serializer para consultas
+      properties:
+        name:
+          type: string
+          minLength: 1
+          title: Nome da Consulta
+          maxLength: 255
+        query:
+          type: string
+          minLength: 1
+          title: Consulta SQL
+        connection:
+          type: integer
+          title: Conexão
+        timeout:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          title: Timeout (segundos)
+        cache_duration:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          title: Cache (segundos, 0 = sem cache)
+        is_active:
+          type: boolean
+      required:
+      - connection
+      - name
+      - query
+    SgbdEnum:
+      enum:
+      - sqlite
+      - postgresql
+      - sqlserver
+      - oracle
+      - mysql
+      type: string
+      description: |-
+        * `sqlite` - SQLite
+        * `postgresql` - PostgreSQL
+        * `sqlserver` - SQL Server
+        * `oracle` - Oracle
+        * `mysql` - MySQL
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    TokenRefreshRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+          minLength: 1
+      required:
+      - refresh
+    TypeEnum:
+      enum:
+      - string
+      - number
+      - date
+      - datetime
+      - boolean
+      - list
+      type: string
+      description: |-
+        * `string` - Texto
+        * `number` - Número
+        * `date` - Data
+        * `datetime` - Data e Hora
+        * `boolean` - Verdadeiro/Falso
+        * `list` - Lista
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+servers:
+- url: http://localhost:8000/api
+  description: Desenvolvimento
+tags:
+- name: authentication
+  description: Autenticação e autorização
+- name: projects
+  description: Gerenciamento de projetos
+- name: project-nodes
+  description: Nós de projeto (estrutura hierárquica)
+- name: connections
+  description: Conexões com banco de dados
+- name: queries
+  description: Consultas SQL
+- name: system
+  description: Endpoints do sistema

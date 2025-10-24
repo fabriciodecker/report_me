@@ -18,8 +18,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copiar código da aplicação
 COPY . .
 
+# Criar usuário não-root para segurança
+RUN adduser --disabled-password --gecos '' appuser && chown -R appuser /app
+USER appuser
+
 # Expor porta
 EXPOSE 8000
 
-# Comando padrão
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+# Comando padrão - suporta variável PORT do ambiente
+CMD ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0:${PORT:-8000}"]
