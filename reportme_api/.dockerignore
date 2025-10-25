@@ -1,20 +1,53 @@
+# Ambientes virtuais
 .reportme_api
+.venv
+venv
+env
+
+# Git
 .git
 .gitignore
+
+# Python
 __pycache__
 *.pyc
 *.pyo
 *.pyd
+*.egg-info
+.pytest_cache
+
+# Django
 *.sqlite3
+db.sqlite3
 .env
 .env.*
-venv
-.venv
-*.egg-info
+media/
+staticfiles/
+
+# Build
 dist
 build
-.DS_Store
-Dockerfile.prod
 node_modules
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
 *.log
-coverage/
+logs/
+
+# Docker
+Dockerfile.*
+docker-compose*
+
+# Documentação desnecessária
+README*.md
+DEPLOY*.md
+*.txt.backup

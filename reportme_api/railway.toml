@@ -10,3 +10,4 @@ restartPolicyMaxRetries = 10
 DJANGO_SETTINGS_MODULE = "reportme.settings_railway"
 DEBUG = "False"
 PYTHONPATH = "/app"
+NIXPACKS_BUILD_CMD = "docker"

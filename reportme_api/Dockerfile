@@ -23,6 +23,9 @@ RUN sqlite3 --version && python3 -c "import sqlite3; print('SQLite3 funcionando!
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Verificar se SQLite funciona após instalação das dependências
+RUN python3 -c "import sqlite3; conn = sqlite3.connect(':memory:'); conn.close(); print('✅ SQLite OK')"
+
 # Copiar código da aplicação
 COPY . .
 
