@@ -1,0 +1,22 @@
+# Railway ignore - força rebuild limpo
+.git/
+.gitignore
+.dockerignore
+README.md
+*.md
+.vscode/
+.idea/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.env
+.venv/
+env.bak/
+venv.bak/
+.reportme_api/
+db.sqlite3
+*.log

@@ -1,5 +1,6 @@
 [build]
 builder = "dockerfile"
+dockerfilePath = "Dockerfile"
 
 [deploy]
 startCommand = "./start.sh"
@@ -10,4 +11,5 @@ restartPolicyMaxRetries = 10
 DJANGO_SETTINGS_MODULE = "reportme.settings_railway"
 DEBUG = "False"
 PYTHONPATH = "/app"
-NIXPACKS_BUILD_CMD = "docker"
+RAILWAY_DOCKERFILE_BUILD = "true"
+FORCE_DOCKERFILE = "true"
