@@ -7,7 +7,7 @@ DEBUG = False
 # Hosts permitidos
 ALLOWED_HOSTS = ['*']  # Railway irá definir automaticamente
 
-# Usar PostgreSQL se DATABASE_URL estiver disponível
+# FORÇAR PostgreSQL - não usar SQLite em produção
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if DATABASE_URL:
     import dj_database_url
@@ -15,13 +15,12 @@ if DATABASE_URL:
         'default': dj_database_url.parse(DATABASE_URL)
     }
 else:
-    # Fallback para SQLite apenas se DATABASE_URL não estiver disponível
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
+    # Se não tem DATABASE_URL, criar um erro claro
+    raise Exception(
+        "DATABASE_URL não configurada! "
+        "Adicione um banco PostgreSQL no Railway em: "
+        "New → Database → PostgreSQL"
+    )
 
 # Configurações de produção
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
