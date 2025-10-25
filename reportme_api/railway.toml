@@ -1,0 +1,12 @@
+[build]
+builder = "dockerfile"
+
+[deploy]
+startCommand = "python manage.py migrate && python manage.py runserver 0.0.0.0:$PORT"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
+
+[env]
+DJANGO_SETTINGS_MODULE = "reportme.settings_railway"
+DEBUG = "False"
+PYTHONPATH = "/app"

@@ -4,14 +4,18 @@ FROM python:3.12-slim
 # Definir diretório de trabalho
 WORKDIR /app
 
-# Instalar dependências do sistema
+# Instalar dependências do sistema incluindo SQLite
 RUN apt-get update && apt-get install -y \
     gcc \
     default-libmysqlclient-dev \
     pkg-config \
     sqlite3 \
     libsqlite3-dev \
+    libsqlite3-0 \
     && rm -rf /var/lib/apt/lists/*
+
+# Verificar se SQLite está instalado corretamente
+RUN sqlite3 --version && python3 -c "import sqlite3; print('SQLite3 funcionando!')"
 
 # Copiar requirements e instalar dependências Python
 COPY requirements.txt .
